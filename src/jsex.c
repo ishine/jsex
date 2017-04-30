@@ -17,7 +17,7 @@ tokens: ., :, (, ), ", '
 #include <string.h>
 #include <stdio.h>
 #include <regex.h>
-#include "jsex.h"
+#include <jsex.h>
 
 #define LEX_NONE        0
 #define LEX_LPAREN      1

@@ -4,22 +4,25 @@
 #
 # Syntax: make [ DEBUG=1 ] [ all | clean ]
 
+SRC = src
+INC = include
+
 CC = gcc
 RM = rm -f
-CFLAGS = -pipe -Wall -Wextra
+CFLAGS = -pipe -Wall -I$(INC)
 
 TARGET = jsex
 OBJECTS = main.o jsex.o
 
 ifeq ($(DEBUG), 1)
-	CFLAGS += -g
+	CFLAGS += -g -Wextra
 else
 	CFLAGS += -O2
 endif
 
 .PHONY: all clean
 
-%.o: %.c
+%.o: $(SRC)/%.c $(INC)/*.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 all: $(TARGET)

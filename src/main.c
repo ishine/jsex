@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "jsex.h"
+#include <jsex.h>
 
 int main(int argc, char **argv) {
     jsex_token_t *tokens;
