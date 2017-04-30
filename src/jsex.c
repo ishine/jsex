@@ -135,8 +135,11 @@ static jsex_token_t* jsex_lexer(const char *input);
 static void jsex_regex_compile();
 static void jsex_token_free(jsex_token_t *tokens);
 static int jsex_lexer_next(const char *input, int *offset);
+static int jsex_parse_query(jsex_token_t **tokens);
+static int jsex_parse_sentence(jsex_token_t **tokens);
+static int jsex_parse_term(jsex_token_t **tokens);
+static int jsex_parse_factor(jsex_token_t **tokens);
 static int jsex_parse_expression(jsex_token_t **tokens);
-static int jsex_parse_expression_nested(jsex_token_t **tokens);
 static int jsex_parse_function(jsex_token_t **tokens);
 static int jsex_parse_variable(jsex_token_t **tokens);
 static int jsex_parse_loop(jsex_token_t **tokens);
@@ -160,7 +163,7 @@ int jsex_parse(const char *input) {
     }
 
     tokens_tmp = tokens;
-    result = jsex_parse_expression(&tokens_tmp);
+    result = jsex_parse_query(&tokens_tmp);
 
     if (result == 0 && tokens_tmp->type != LEX_NONE) {
         error("Expected %s, got '%s'", TOKENS[LEX_NONE], tokens_tmp->string);
@@ -301,118 +304,180 @@ int jsex_lexer_next(const char *input, int *offset) {
 
 /* Parser functions ***********************************************************/
 
-int jsex_parse_expression(jsex_token_t **tokens) {
-    int result;
+// <query> ::= <sentence> [ ( '&&' | '||' ) <query> ]
+int jsex_parse_query(jsex_token_t **tokens) {
+    debug("jsex_parse_query(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
+    if (jsex_parse_sentence(tokens) < 0) {
+        return -1;
+    }
+
+    switch ((*tokens)->type) {
+    case LEX_AND:
+    case LEX_OR:
+        ++(*tokens);
+
+        if (jsex_parse_query(tokens) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+// <sentence> ::= <loop> | '!' <sentence> | <expression> [ ( '=~' | '==' | '!=' | '>=' | '<=' | '>' | '<' ) <sentence> ]
+int jsex_parse_sentence(jsex_token_t **tokens) {
+    debug("jsex_parse_sentence(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
+
+    if ((*tokens)->type == LEX_ID && (strcmp((*tokens)->string, KEYWORD_ALL) == 0 || strcmp((*tokens)->string, KEYWORD_ANY) == 0)) {
+        if (jsex_parse_loop(tokens) < 0) {
+            return -1;
+        }
+    } else if ((*tokens)->type == LEX_BANG) {
+        ++(*tokens);
+
+        if (jsex_parse_sentence(tokens) < 0) {
+            return -1;
+        }
+    } else if (jsex_parse_expression(tokens) < 0) {
+        return -1;
+    }
+
+    switch ((*tokens)->type) {
+    case LEX_MATCH:
+    case LEX_EQUAL:
+    case LEX_NEQUAL:
+    case LEX_GEQ:
+    case LEX_LEQ:
+    case LEX_GREATER:
+    case LEX_LESS:
+        ++(*tokens);
+
+        if (jsex_parse_sentence(tokens) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+// <expression> ::= <term> [ ( '+' | '-' ) <expression> ]
+int jsex_parse_expression(jsex_token_t **tokens) {
     debug("jsex_parse_expression(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
+
+    if (jsex_parse_term(tokens) < 0) {
+        return -1;
+    }
+
+    switch ((*tokens)->type) {
+    case LEX_PLUS:
+    case LEX_MINUS:
+        ++(*tokens);
+
+        if (jsex_parse_expression(tokens) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+// <term> ::= <factor> ( '*' | '/' | '%' ) <term> ]
+int jsex_parse_term(jsex_token_t **tokens) {
+    debug("jsex_parse_term(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
+
+    if (jsex_parse_factor(tokens) < 0) {
+        return -1;
+    }
+
+    switch ((*tokens)->type) {
+    case LEX_TIMES:
+    case LEX_SLASH:
+    case LEX_MOD:
+        ++(*tokens);
+
+        if (jsex_parse_term(tokens) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+// <factor> ::= '(' <query> ')' | '-' <factor> | <function> | <variable> | <float> | <integer> | <string> | 'null'
+int jsex_parse_factor(jsex_token_t **tokens) {
+    debug("jsex_parse_factor(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     switch ((*tokens)->type) {
     case LEX_LPAREN:
-        result = jsex_parse_expression_nested(tokens);
+        ++(*tokens);
+
+        if (jsex_parse_query(tokens) < 0) {
+            return -1;
+        }
+
+        if ((*tokens)->type != LEX_LPAREN) {
+            error("Expected %s, got '%s'", TOKENS[LEX_LPAREN], (*tokens)->string);
+            return -1;
+        }
+
+        ++(*tokens);
         break;
 
     case LEX_ID:
-        switch ((*tokens)[1].type) {
-        case LEX_LPAREN:
-            result = jsex_parse_function(tokens);
-            break;
-
-        default:
-            if (strcmp((*tokens)->string, KEYWORD_ALL) == 0 || strcmp((*tokens)->string, KEYWORD_ANY) == 0) {
-                result = jsex_parse_loop(tokens);
-            } else if (strcmp((*tokens)->string, KEYWORD_NULL) == 0) {
-                result = jsex_parse_null(tokens);
-            } else {
-                result = jsex_parse_variable(tokens);
+        if ((*tokens)[1].type == LEX_LPAREN) {
+            if (jsex_parse_function(tokens) < 0) {
+                return -1;
             }
+        } else if (strcmp((*tokens)->string, KEYWORD_NULL) == 0) {
+            if (jsex_parse_null(tokens) < 0) {
+                return -1;
+            }
+        } else if (jsex_parse_variable(tokens) < 0) {
+            return -1;
         }
 
         break;
 
     case LEX_FLOAT:
-        result = jsex_parse_float(tokens);
-        break;
-
-    case LEX_INTEGER:
-        result = jsex_parse_integer(tokens);
-        break;
-
-    case LEX_STRING:
-        result = jsex_parse_string(tokens);
-        break;
-
-    case LEX_MINUS:
-        ++(*tokens);
-        result = jsex_parse_expression(tokens);
-
-        if (result < 0) {
-            // Make it negative (number)
+        if (jsex_parse_float(tokens) < 0) {
+            return -1;
         }
 
         break;
 
-    case LEX_BANG:
-        ++(*tokens);
-        result = jsex_parse_expression(tokens);
+    case LEX_INTEGER:
+        if (jsex_parse_integer(tokens) < 0) {
+            return -1;
+        }
 
-        if (!result) {
-            // Make it negative (bool)
+        break;
+
+    case LEX_STRING:
+        if (jsex_parse_string(tokens) < 0) {
+            return -1;
+        }
+
+        break;
+
+    case LEX_MINUS:
+        ++(*tokens);
+
+        if (jsex_parse_factor(tokens) < 0) {
+            return -1;
         }
 
         break;
 
     default:
-        error("unexpected token '%s'", (*tokens)->string);
-        result = -1;
-    }
-
-    if (result == 0) {
-        switch ((*tokens)->type) {
-        case LEX_AND:
-        case LEX_OR:
-        case LEX_PLUS:
-        case LEX_MINUS:
-        case LEX_TIMES:
-        case LEX_SLASH:
-        case LEX_MOD:
-        case LEX_MATCH:
-        case LEX_EQUAL:
-        case LEX_NEQUAL:
-        case LEX_GEQ:
-        case LEX_LEQ:
-        case LEX_GREATER:
-        case LEX_LESS:
-            ++(*tokens);
-            result = jsex_parse_expression(tokens);
-        }
-    }
-
-    return result;
-}
-
-int jsex_parse_expression_nested(jsex_token_t **tokens) {
-    debug("jsex_parse_expression_nested(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
-
-    if ((*tokens)->type != LEX_LPAREN) {
-        error("Expected %s, got '%s'", TOKENS[LEX_LPAREN], (*tokens)->string);
+        error("Expected factor, got '%s'", (*tokens)->string);
         return -1;
     }
 
-    ++(*tokens);
-
-    if (jsex_parse_expression(tokens) < 0) {
-        return -1;
-    }
-
-    if ((*tokens)->type != LEX_RPAREN) {
-        error("Expected %s, got '%s'", TOKENS[LEX_RPAREN], (*tokens)->string);
-        return -1;
-    }
-
-    ++(*tokens);
     return 0;
 }
 
+// <function> ::= <id> '(' <query> ')'
 int jsex_parse_function(jsex_token_t **tokens) {
     debug("jsex_parse_function(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
@@ -443,7 +508,7 @@ int jsex_parse_function(jsex_token_t **tokens) {
 
     ++(*tokens);
 
-    if (jsex_parse_expression(tokens) < 0) {
+    if (jsex_parse_query(tokens) < 0) {
         return -1;
     }
 
@@ -456,6 +521,7 @@ int jsex_parse_function(jsex_token_t **tokens) {
     return 0;
 }
 
+// <variable> ::= <id> [ '[' <expression> ']' ] [ '.' <variable> ]
 int jsex_parse_variable(jsex_token_t **tokens) {
     debug("jsex_parse_variable(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
@@ -466,8 +532,7 @@ int jsex_parse_variable(jsex_token_t **tokens) {
 
     ++(*tokens);
 
-    switch ((*tokens)->type) {
-    case LEX_LBRACKET:
+    if ((*tokens)->type == LEX_LBRACKET) {
         ++(*tokens);
 
         if (jsex_parse_expression(tokens) < 0) {
@@ -480,21 +545,20 @@ int jsex_parse_variable(jsex_token_t **tokens) {
         }
 
         ++(*tokens);
-        break;
+    }
 
-    case LEX_DOT:
+    if ((*tokens)->type == LEX_DOT) {
         ++(*tokens);
 
         if (jsex_parse_variable(tokens) < 0) {
             return -1;
         }
-
-        break;
     }
 
     return 0;
 }
 
+// <loop> ::= ( 'all' | 'any' ) <id> 'in' <variable> ':' '(' <query> ')'
 int jsex_parse_loop(jsex_token_t **tokens) {
     debug("jsex_parse_loop(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
@@ -522,7 +586,7 @@ int jsex_parse_loop(jsex_token_t **tokens) {
     ++(*tokens);
 
     if (!((*tokens)->type == LEX_ID && strcmp((*tokens)->string, KEYWORD_IN) == 0)) {
-        error("Expected %s, got '%s'", TOKENS[LEX_ID], (*tokens)->string);
+        error("Expected '%s', got '%s'", KEYWORD_IN, (*tokens)->string);
         return -1;
     }
 
@@ -539,9 +603,23 @@ int jsex_parse_loop(jsex_token_t **tokens) {
 
     ++(*tokens);
 
-    if (jsex_parse_expression_nested(tokens) < 0) {
+    if ((*tokens)->type != LEX_LPAREN) {
+        error("Expected %s, got '%s'", TOKENS[LEX_LPAREN], (*tokens)->string);
         return -1;
     }
+
+    ++(*tokens);
+
+    if (jsex_parse_query(tokens) < 0) {
+        return -1;
+    }
+
+    if ((*tokens)->type != LEX_RPAREN) {
+        error("Expected %s, got '%s'", TOKENS[LEX_RPAREN], (*tokens)->string);
+        return -1;
+    }
+
+    ++(*tokens);
 
     return 0;
 }
