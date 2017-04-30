@@ -15,7 +15,7 @@ TARGET = jsex
 OBJECTS = main.o jsex.o
 
 ifeq ($(DEBUG), 1)
-	CFLAGS += -g -Wextra
+	CFLAGS += -g -Wextra -DDEBUG
 else
 	CFLAGS += -O2
 endif
