@@ -125,9 +125,8 @@ static const char * KEYWORD_ANY = "any";
 static const char * KEYWORD_NULL = "null";
 
 static const char * FUNCTION_INT = "int";
-static const char * FUNCTION_SIZE = "size";
 static const char * FUNCTION_STRING = "str";
-static const char * FUNCTION_FLOAT = "float";
+static const char * FUNCTION_SIZE = "size";
 
 static regex_t *regexes = NULL;
 
@@ -491,8 +490,6 @@ int jsex_parse_function(jsex_token_t **tokens) {
     } else if (strcmp((*tokens)->string, FUNCTION_SIZE)) {
 
     } else if (strcmp((*tokens)->string, FUNCTION_STRING)) {
-
-    } else if (strcmp((*tokens)->string, FUNCTION_FLOAT)) {
 
     } else {
         error("Invalid function");

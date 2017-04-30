@@ -13,10 +13,10 @@ This project will use POSIX Regular Expressions Library and [cJSON Library](http
 ## Language
 
 - **Keywords**: `all`, `any`, `in`, `null`
-- **Functions**: `size()`, `int()`, `str()`, `float()`
+- **Functions**: `size()`, `int()`, `str()`
 - **Comparators**: `==`, `!=`, `<`, `>`, `<=`, `>=`, `=~`
-- **Operators**: `[`, `]`, `+`, `-`, `*`, `/`, `%`, `&&`, `||`, `!`
-- **Tokens**: `.`, `:`, `(`, `)`, `"..."`, `'...'`
+- **Operators**: `[`, `]`, `.` `+`, `-`, `*`, `/`, `%`, `&&`, `||`, `!`
+- **Other tokens**: `(`, `)`, `:`, `"..."`, `'...'`
 
 ### Syntax
 
