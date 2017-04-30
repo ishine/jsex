@@ -14,7 +14,18 @@
 #ifdef DEBUG
 #define debug(format, ...) fprintf(stderr, "DEBUG: " format "\n", ##__VA_ARGS__)
 #else
-#define debug(...)
+#define debug(format, ...)
+#endif
+
+#ifdef PROFILE
+#include <time.h>
+#define profile_start() clock_t clock_s = clock()
+#define profile_reset() clock_s = clock()
+#define profile_print(name) printf("PROFILE: " name ": %.3f ms.\n", (double)(clock() - clock_s) * 1000 / CLOCKS_PER_SEC)
+#else
+#define profile_start()
+#define profile_reset()
+#define profile_print(name)
 #endif
 
 #define LEX_NONE        0
@@ -139,7 +150,10 @@ static int jsex_parse_string(jsex_token_t **tokens);
 int jsex_parse(const char *input) {
     int result;
     jsex_token_t *tokens_tmp;
-    jsex_token_t *tokens = jsex_lexer(input);
+    jsex_token_t *tokens;
+
+    profile_start();
+    tokens = jsex_lexer(input);
 
     if (!tokens) {
         return -1;
@@ -154,6 +168,7 @@ int jsex_parse(const char *input) {
     }
 
     jsex_token_free(tokens);
+    profile_print("jsex_parse()");
     return result;
 }
 
@@ -178,6 +193,7 @@ jsex_token_t* jsex_lexer(const char *input) {
     int offset;
     jsex_token_t *tokens = NULL;
 
+    profile_start();
     debug("jsex_lexer(): %s", input);
 
     if (!regexes) {
@@ -205,6 +221,7 @@ jsex_token_t* jsex_lexer(const char *input) {
         return NULL;
     }
 
+    profile_print("jsex_lexer()");
     return tokens;
 }
 
@@ -213,6 +230,7 @@ void jsex_regex_compile() {
     int errcode;
     char errbuf[128];
 
+    profile_start();
     regexes = malloc(sizeof(regex_t) * N_PATTERNS);
 
     if (!regexes) {
@@ -229,6 +247,8 @@ void jsex_regex_compile() {
             exit(EXIT_FAILURE);
         }
     }
+
+    profile_print("jsex_regex_compile()");
 }
 
 void jsex_token_free(jsex_token_t *tokens) {
