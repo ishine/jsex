@@ -5,9 +5,10 @@
 
 int main(int argc, char **argv) {
     int i;
-    char *line;
-    char *delimiter;
+    char * line;
+    char * delimiter;
     size_t linecap;
+    jsex_t * jsex;
 
     if (argc == 1) {
         while (getline(&line, &linecap, stdin) >= 0) {
@@ -17,13 +18,20 @@ int main(int argc, char **argv) {
                 *delimiter = '\0';
             }
 
-            printf(jsex_parse(line) ? "JSex parser error.\n\n" : "\n");
+            if (jsex = jsex_parse(line), jsex) {
+                jsex_free(jsex);
+                printf("\n");
+            } else {
+                printf("JSex parser error.\n\n");
+            }
         }
     } else {
         for (i = 1; i < argc; i++) {
             printf("\nParsing: %s\n", argv[i]);
 
-            if (jsex_parse(argv[i])) {
+            if (jsex = jsex_parse(argv[i]), jsex) {
+                jsex_free(jsex);
+            } else {
                 printf("JSex parser error.\n");
             }
         }

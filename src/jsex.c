@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <regex.h>
 #include <jsex.h>
 
 #define error(format, ...) fprintf(stderr, "ERROR: " format "\n", ##__VA_ARGS__)
@@ -27,6 +26,8 @@
 #define profile_reset()
 #define profile_print(name)
 #endif
+
+#define CJSON_INITIALIZER { NULL, NULL, NULL, 0, NULL, 0, 0, NULL }
 
 #define LEX_NONE        0
 #define LEX_LPAREN      1
@@ -119,59 +120,117 @@ static const char * TOKENS[] = {
     "'!'"
 };
 
-static const char * KEYWORD_IN = "in";
-static const char * KEYWORD_ALL = "all";
-static const char * KEYWORD_ANY = "any";
-static const char * KEYWORD_NULL = "null";
+static const char * const KEYWORD_IN = "in";
+static const char * const KEYWORD_ALL = "all";
+static const char * const KEYWORD_ANY = "any";
+static const char * const KEYWORD_NULL = "null";
 
-static const char * FUNCTION_INT = "int";
-static const char * FUNCTION_STRING = "str";
-static const char * FUNCTION_SIZE = "size";
+static const char * const FUNCTION_INT = "int";
+static const char * const FUNCTION_STRING = "str";
+static const char * const FUNCTION_SIZE = "size";
 
-static regex_t *regexes = NULL;
+static regex_t * regexes = NULL;
 
-static jsex_token_t* jsex_lexer(const char *input);
+static jsex_token_t * jsex_lexer(const char * input);
 static void jsex_regex_compile();
-static void jsex_token_free(jsex_token_t *tokens);
-static int jsex_lexer_next(const char *input, int *offset);
-static int jsex_parse_query(jsex_token_t **tokens);
-static int jsex_parse_sentence(jsex_token_t **tokens);
-static int jsex_parse_term(jsex_token_t **tokens);
-static int jsex_parse_factor(jsex_token_t **tokens);
-static int jsex_parse_expression(jsex_token_t **tokens);
-static int jsex_parse_function(jsex_token_t **tokens);
-static int jsex_parse_variable(jsex_token_t **tokens);
-static int jsex_parse_loop(jsex_token_t **tokens);
-static int jsex_parse_null(jsex_token_t **tokens);
-static int jsex_parse_float(jsex_token_t **tokens);
-static int jsex_parse_integer(jsex_token_t **tokens);
-static int jsex_parse_string(jsex_token_t **tokens);
+static void jsex_token_free(jsex_token_t * tokens);
+static int jsex_lexer_next(const char * input, int * offset);
+
+static jsex_t * jsex_parse_query(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_sentence(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_expression(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_term(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_factor(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_function(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_variable(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_loop(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_null(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_float(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_integer(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_string(const jsex_token_t ** tokens);
+
+static void jsex_rt_and(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_or(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_match(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_equal(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_not_equal(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_greater_equal(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_less_equal(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_greater(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_less(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_add(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_subtract(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_multiply(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_divide(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_modulo(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_negate(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_opposite(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_int(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_value(const jsex_t * node, const cJSON * value, cJSON * result);
+
+static int jsex_cast_bool(const cJSON * value);
+static int jsex_cast_int(const cJSON * value);
 
 /* Public functions ***********************************************************/
 
-int jsex_parse(const char *input) {
-    int result;
-    jsex_token_t *tokens_tmp;
-    jsex_token_t *tokens;
+jsex_t * jsex_parse(const char *input) {
+    jsex_t * node = NULL;
+    jsex_token_t * tokens = NULL;
+    const jsex_token_t * tokens_tmp;
 
     profile_start();
     tokens = jsex_lexer(input);
 
     if (!tokens) {
-        return -1;
+        goto error;
     }
 
     tokens_tmp = tokens;
-    result = jsex_parse_query(&tokens_tmp);
+    node = jsex_parse_query(&tokens_tmp);
 
-    if (result == 0 && tokens_tmp->type != LEX_NONE) {
+    if (!node) {
+        goto error;
+    }
+
+    if (tokens_tmp->type != LEX_NONE) {
         error("Expected %s, got '%s'", TOKENS[LEX_NONE], tokens_tmp->string);
-        result = -1;
+        goto error;
     }
 
     jsex_token_free(tokens);
     profile_print("jsex_parse()");
-    return result;
+    return node;
+
+error:
+    jsex_token_free(tokens);
+    jsex_free(node);
+    return NULL;
+}
+
+int jsex_exec(const jsex_t * node, cJSON * value) {
+    cJSON result = CJSON_INITIALIZER;
+    node->function(node, value, &result);
+    return jsex_cast_bool(&result);
+}
+
+void jsex_free(jsex_t * node) {
+    if (node) {
+        cJSON_Delete(node->value);
+
+        if (node->regex) {
+            regfree(node->regex);
+            free(node->regex);
+        }
+
+        jsex_free(node->args[0]);
+        jsex_free(node->args[1]);
+        free(node);
+    }
 }
 
 void jsex_cleanup() {
@@ -189,11 +248,11 @@ void jsex_cleanup() {
 
 /* Lexer functions ************************************************************/
 
-jsex_token_t* jsex_lexer(const char *input) {
+jsex_token_t * jsex_lexer(const char *input) {
     int token;
     int i = 0;
     int offset;
-    jsex_token_t *tokens = NULL;
+    jsex_token_t * tokens = NULL;
 
     profile_start();
     debug("jsex_lexer(): %s", input);
@@ -253,7 +312,7 @@ void jsex_regex_compile() {
 }
 
 void jsex_token_free(jsex_token_t *tokens) {
-    jsex_token_t *token;
+    jsex_token_t * token;
 
     if (tokens) {
         for (token = tokens; token->type != LEX_NONE; token++) {
@@ -303,120 +362,256 @@ int jsex_lexer_next(const char *input, int *offset) {
 /* Parser functions ***********************************************************/
 
 // <query> ::= <sentence> [ ( '&&' | '||' ) <query> ]
-int jsex_parse_query(jsex_token_t **tokens) {
+jsex_t * jsex_parse_query(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+    jsex_t * parent;
+    jsex_t * sibling;
+    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+
     debug("jsex_parse_query(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
-    if (jsex_parse_sentence(tokens) < 0) {
-        return -1;
+    node = jsex_parse_sentence(tokens);
+
+    if (!node) {
+        goto error;
     }
 
     switch ((*tokens)->type) {
     case LEX_AND:
-    case LEX_OR:
-        ++(*tokens);
+        function = jsex_rt_and;
+        break;
 
-        if (jsex_parse_query(tokens) < 0) {
-            return -1;
-        }
+    case LEX_OR:
+        function = jsex_rt_or;
+        break;
+
+    default:
+        return node;
     }
 
-    return 0;
+    ++(*tokens);
+    sibling = jsex_parse_query(tokens);
+
+    if (!sibling) {
+        goto error;
+    }
+
+    parent = calloc(1, sizeof(jsex_t));
+    parent->function = function;
+    parent->args[0] = node;
+    parent->args[1] = sibling;
+
+    return parent;
+
+error:
+    jsex_free(node);
+    return NULL;
 }
 
 // <sentence> ::= <loop> | '!' <sentence> | <expression> [ ( '=~' | '==' | '!=' | '>=' | '<=' | '>' | '<' ) <sentence> ]
-int jsex_parse_sentence(jsex_token_t **tokens) {
+jsex_t * jsex_parse_sentence(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+    jsex_t * parent;
+    jsex_t * sibling;
+    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+
     debug("jsex_parse_sentence(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type == LEX_ID && (strcmp((*tokens)->string, KEYWORD_ALL) == 0 || strcmp((*tokens)->string, KEYWORD_ANY) == 0)) {
-        if (jsex_parse_loop(tokens) < 0) {
-            return -1;
+        node = jsex_parse_loop(tokens);
+
+        if (!node) {
+            goto error;
         }
     } else if ((*tokens)->type == LEX_BANG) {
         ++(*tokens);
+        node = jsex_parse_sentence(tokens);
 
-        if (jsex_parse_sentence(tokens) < 0) {
-            return -1;
+        if (!node) {
+            goto error;
         }
-    } else if (jsex_parse_expression(tokens) < 0) {
-        return -1;
+
+        parent = calloc(1, sizeof(jsex_t));
+        parent->function = jsex_rt_negate;
+        parent->args[0] = node;
+        node = parent;
+    } else {
+        node = jsex_parse_expression(tokens);
+
+        if (!node) {
+            goto error;
+        }
     }
 
     switch ((*tokens)->type) {
     case LEX_MATCH:
-    case LEX_EQUAL:
-    case LEX_NEQUAL:
-    case LEX_GEQ:
-    case LEX_LEQ:
-    case LEX_GREATER:
-    case LEX_LESS:
-        ++(*tokens);
+        function = jsex_rt_match;
+        break;
 
-        if (jsex_parse_sentence(tokens) < 0) {
-            return -1;
-        }
+    case LEX_EQUAL:
+        function = jsex_rt_equal;
+        break;
+
+    case LEX_NEQUAL:
+        function = jsex_rt_not_equal;
+        break;
+
+    case LEX_GEQ:
+        function = jsex_rt_greater_equal;
+        break;
+
+    case LEX_LEQ:
+        function = jsex_rt_less_equal;
+        break;
+
+    case LEX_GREATER:
+        function = jsex_rt_greater;
+        break;
+
+    case LEX_LESS:
+        function = jsex_rt_less;
+        break;
+
+    default:
+        return node;
     }
 
-    return 0;
+    ++(*tokens);
+    sibling = jsex_parse_sentence(tokens);
+
+    if (!sibling) {
+        goto error;
+    }
+
+    parent = calloc(1, sizeof(jsex_t));
+    parent->function = function;
+    parent->args[0] = node;
+    parent->args[1] = sibling;
+
+    return parent;
+
+error:
+    jsex_free(node);
+    return NULL;
 }
 
 // <expression> ::= <term> [ ( '+' | '-' ) <expression> ]
-int jsex_parse_expression(jsex_token_t **tokens) {
+jsex_t * jsex_parse_expression(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+    jsex_t * parent;
+    jsex_t * sibling;
+    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+
     debug("jsex_parse_expression(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
-    if (jsex_parse_term(tokens) < 0) {
-        return -1;
+    node = jsex_parse_term(tokens);
+
+    if (!node) {
+        goto error;
     }
 
     switch ((*tokens)->type) {
     case LEX_PLUS:
-    case LEX_MINUS:
-        ++(*tokens);
+        function = jsex_rt_add;
+        break;
 
-        if (jsex_parse_expression(tokens) < 0) {
-            return -1;
-        }
+    case LEX_MINUS:
+        function = jsex_rt_subtract;
+        break;
+
+    default:
+        return node;
     }
 
-    return 0;
+    ++(*tokens);
+    sibling = jsex_parse_expression(tokens);
+
+    if (!sibling) {
+        goto error;
+    }
+
+    parent = calloc(1, sizeof(jsex_t));
+    parent->function = function;
+    parent->args[0] = node;
+    parent->args[1] = sibling;
+
+    return parent;
+
+error:
+    jsex_free(node);
+    return NULL;
 }
 
 // <term> ::= <factor> ( '*' | '/' | '%' ) <term> ]
-int jsex_parse_term(jsex_token_t **tokens) {
+jsex_t * jsex_parse_term(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+    jsex_t * parent;
+    jsex_t * sibling;
+    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+
     debug("jsex_parse_term(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
-    if (jsex_parse_factor(tokens) < 0) {
-        return -1;
+    node = jsex_parse_factor(tokens);
+
+    if (!node) {
+        goto error;
     }
 
     switch ((*tokens)->type) {
     case LEX_TIMES:
-    case LEX_SLASH:
-    case LEX_MOD:
-        ++(*tokens);
+        function = jsex_rt_multiply;
+        break;
 
-        if (jsex_parse_term(tokens) < 0) {
-            return -1;
-        }
+    case LEX_SLASH:
+        function = jsex_rt_divide;
+        break;
+
+    case LEX_MOD:
+        function = jsex_rt_modulo;
+        break;
+
+    default:
+        return node;
     }
 
-    return 0;
+    ++(*tokens);
+    sibling = jsex_parse_term(tokens);
+
+    if (!sibling) {
+        goto error;
+    }
+
+    parent = calloc(1, sizeof(jsex_t));
+    parent->function = function;
+    parent->args[0] = node;
+    parent->args[1] = sibling;
+
+    return parent;
+
+error:
+    jsex_free(node);
+    return NULL;
 }
 
 // <factor> ::= '(' <query> ')' | '-' <factor> | <function> | <variable> | <float> | <integer> | <string> | 'null'
-int jsex_parse_factor(jsex_token_t **tokens) {
+jsex_t * jsex_parse_factor(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+    jsex_t * parent;
+
     debug("jsex_parse_factor(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     switch ((*tokens)->type) {
     case LEX_LPAREN:
         ++(*tokens);
+        node = jsex_parse_query(tokens);
 
-        if (jsex_parse_query(tokens) < 0) {
-            return -1;
+        if (!node) {
+            goto error;
         }
 
         if ((*tokens)->type != LEX_LPAREN) {
             error("Expected %s, got '%s'", TOKENS[LEX_LPAREN], (*tokens)->string);
-            return -1;
+            goto error;
         }
 
         ++(*tokens);
@@ -424,36 +619,50 @@ int jsex_parse_factor(jsex_token_t **tokens) {
 
     case LEX_ID:
         if ((*tokens)[1].type == LEX_LPAREN) {
-            if (jsex_parse_function(tokens) < 0) {
-                return -1;
+            node = jsex_parse_function(tokens);
+
+            if (!node) {
+                goto error;
             }
         } else if (strcmp((*tokens)->string, KEYWORD_NULL) == 0) {
-            if (jsex_parse_null(tokens) < 0) {
-                return -1;
+            node = jsex_parse_null(tokens);
+
+            if (!node) {
+                goto error;
             }
-        } else if (jsex_parse_variable(tokens) < 0) {
-            return -1;
+        } else {
+            node = jsex_parse_variable(tokens);
+
+            if (!node) {
+                goto error;
+            }
         }
 
         break;
 
     case LEX_FLOAT:
-        if (jsex_parse_float(tokens) < 0) {
-            return -1;
+        node = jsex_parse_float(tokens);
+
+        if (!node) {
+            goto error;
         }
 
         break;
 
     case LEX_INTEGER:
-        if (jsex_parse_integer(tokens) < 0) {
-            return -1;
+        node = jsex_parse_integer(tokens);
+
+        if (!node) {
+            goto error;
         }
 
         break;
 
     case LEX_STRING:
-        if (jsex_parse_string(tokens) < 0) {
-            return -1;
+        node = jsex_parse_string(tokens);
+
+        if (!node) {
+            goto error;
         }
 
         break;
@@ -461,83 +670,114 @@ int jsex_parse_factor(jsex_token_t **tokens) {
     case LEX_MINUS:
         ++(*tokens);
 
-        if (jsex_parse_factor(tokens) < 0) {
-            return -1;
+        node = jsex_parse_factor(tokens);
+
+        if (!node) {
+            goto error;
         }
+
+        parent = calloc(1, sizeof(jsex_t));
+        parent->function = jsex_rt_opposite;
+        parent->args[0] = node;
+        node = parent;
 
         break;
 
     default:
         error("Expected factor, got '%s'", (*tokens)->string);
-        return -1;
+        goto error;
     }
 
-    return 0;
+    return node;
+
+error:
+    jsex_free(node);
+    return NULL;
 }
 
 // <function> ::= <id> '(' <query> ')'
-int jsex_parse_function(jsex_token_t **tokens) {
+jsex_t * jsex_parse_function(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+
     debug("jsex_parse_function(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type != LEX_ID) {
         error("Expected %s, got '%s'", TOKENS[LEX_ID], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
+    node = calloc(1, sizeof(jsex_t));
+
     if (strcmp((*tokens)->string, FUNCTION_INT)) {
-
+        node->function = jsex_rt_int;
     } else if (strcmp((*tokens)->string, FUNCTION_SIZE)) {
-
+        node->function = jsex_rt_size;
     } else if (strcmp((*tokens)->string, FUNCTION_STRING)) {
-
+        node->function = jsex_rt_string;
     } else {
         error("Invalid function");
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
 
     if ((*tokens)->type != LEX_LPAREN) {
         error("Expected %s, got '%s'", TOKENS[LEX_LPAREN], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
+    node->args[0] = jsex_parse_query(tokens);
 
-    if (jsex_parse_query(tokens) < 0) {
-        return -1;
+    if (!node->args[0]) {
+        goto error;
     }
 
     if ((*tokens)->type != LEX_RPAREN) {
         error("Expected %s, got '%s'", TOKENS[LEX_RPAREN], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
-    return 0;
+    return node;
+
+error:
+    jsex_free(node);
+    return NULL;
 }
 
 // <variable> ::= <id> [ '[' <expression> ']' ] [ '.' <variable> ]
-int jsex_parse_variable(jsex_token_t **tokens) {
+jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+    jsex_t * index;
+    jsex_t * parent;
+
     debug("jsex_parse_variable(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type != LEX_ID) {
         error("Expected %s, got '%s'", TOKENS[LEX_ID], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
+    node = calloc(1, sizeof(jsex_t));
+    node->value = cJSON_CreateString((*tokens)->string);
+    node->function = jsex_rt_variable;
     ++(*tokens);
 
     if ((*tokens)->type == LEX_LBRACKET) {
         ++(*tokens);
 
-        if (jsex_parse_expression(tokens) < 0) {
-            return -1;
+        index = jsex_parse_expression(tokens);
+
+        if (!index) {
+            goto error;
         }
+
+        node->args[0] = index;
 
         if ((*tokens)->type != LEX_RBRACKET) {
             error("Expected %s, got '%s'", TOKENS[LEX_RBRACKET], (*tokens)->string);
-            return -1;
+            goto error;
         }
 
         ++(*tokens);
@@ -546,124 +786,639 @@ int jsex_parse_variable(jsex_token_t **tokens) {
     if ((*tokens)->type == LEX_DOT) {
         ++(*tokens);
 
-        if (jsex_parse_variable(tokens) < 0) {
-            return -1;
+        parent = jsex_parse_variable(tokens);
+
+        if (!parent) {
+            goto error;
         }
+
+        parent->args[1] = node;
+        node = parent;
     }
 
-    return 0;
+    return node;
+
+error:
+    jsex_free(node);
+    return NULL;
 }
 
 // <loop> ::= ( 'all' | 'any' ) <id> 'in' <variable> ':' '(' <query> ')'
-int jsex_parse_loop(jsex_token_t **tokens) {
+jsex_t * jsex_parse_loop(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+
     debug("jsex_parse_loop(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type != LEX_ID) {
         error("Expected LEX_ID");
-        return -1;
+        goto error;
     }
 
+    node = calloc(1, sizeof(jsex_t));
+
     if (strcmp((*tokens)->string, KEYWORD_ALL) == 0) {
-
+        node->function = jsex_rt_loop_all;
     } else if (strcmp((*tokens)->string, KEYWORD_ANY) == 0) {
-
+        node->function = jsex_rt_loop_any;
     } else {
         error("Expected '%s' or '%s', got '%s'", KEYWORD_ALL, KEYWORD_ANY, (*tokens)->string);
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
 
     if ((*tokens)->type != LEX_ID) {
         error("Expected %s, got '%s'", TOKENS[LEX_ID], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
+    node->value = cJSON_CreateString((*tokens)->string);
     ++(*tokens);
 
     if (!((*tokens)->type == LEX_ID && strcmp((*tokens)->string, KEYWORD_IN) == 0)) {
         error("Expected '%s', got '%s'", KEYWORD_IN, (*tokens)->string);
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
+    node->args[0] = jsex_parse_variable(tokens);
 
-    if (jsex_parse_variable(tokens) < 0) {
-        return -1;
+    if (!node->args[0]) {
+        goto error;
     }
 
     if ((*tokens)->type != LEX_COLON) {
         error("Expected %s, got '%s'", TOKENS[LEX_COLON], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
 
     if ((*tokens)->type != LEX_LPAREN) {
         error("Expected %s, got '%s'", TOKENS[LEX_LPAREN], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
+    node->args[1] = jsex_parse_query(tokens);
 
-    if (jsex_parse_query(tokens) < 0) {
-        return -1;
+    if (!node->args[1]) {
+        goto error;
     }
 
     if ((*tokens)->type != LEX_RPAREN) {
         error("Expected %s, got '%s'", TOKENS[LEX_RPAREN], (*tokens)->string);
-        return -1;
+        goto error;
     }
 
     ++(*tokens);
+    return node;
 
-    return 0;
+error:
+    jsex_free(node);
+    return NULL;
 }
 
-int jsex_parse_null(jsex_token_t **tokens) {
+jsex_t * jsex_parse_null(const jsex_token_t ** tokens) {
+    jsex_t * node;
+
     debug("jsex_parse_null(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if (!((*tokens)->type == LEX_ID && strcmp((*tokens)->string, KEYWORD_NULL) == 0)) {
         error("Expected '%s', got '%s'", KEYWORD_NULL, (*tokens)->string);
-        return -1;
+        return NULL;
     }
 
+    node = calloc(1, sizeof(jsex_t));
+    node->value = cJSON_CreateNull();
+    node->function = jsex_rt_value;
     ++(*tokens);
     return 0;
 }
 
-int jsex_parse_float(jsex_token_t **tokens) {
+jsex_t * jsex_parse_float(const jsex_token_t ** tokens) {
+    double number;
+    char * end;
+    jsex_t * node;
+
     debug("jsex_parse_float(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type != LEX_FLOAT) {
         error("Expected %s, got '%s'", TOKENS[LEX_FLOAT], (*tokens)->string);
-        return -1;
+        return NULL;
     }
 
+    number = strtod((*tokens)->string, &end);
+
+    if (end == (*tokens)->string) {
+        error("Failed to parse '%s' into float.", (*tokens)->string);
+        return NULL;
+    }
+
+    node = calloc(1, sizeof(jsex_t));
+    node->value = cJSON_CreateNumber(number);
+    node->function = jsex_rt_value;
     ++(*tokens);
-    return 0;
+    return node;
 }
 
-int jsex_parse_integer(jsex_token_t **tokens) {
+jsex_t * jsex_parse_integer(const jsex_token_t ** tokens) {
+    int number;
+    char *end;
+    jsex_t * node;
+
     debug("jsex_parse_integer(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type != LEX_INTEGER) {
         error("Expected %s, got '%s'", TOKENS[LEX_INTEGER], (*tokens)->string);
-        return -1;
+        return NULL;
     }
 
+    number = (int)strtol((*tokens)->string, &end, 10);
+
+    if (end == (*tokens)->string) {
+        error("Failed to parse '%s' into integer.", (*tokens)->string);
+        return NULL;
+    }
+
+    node = calloc(1, sizeof(jsex_t));
+    node->value = cJSON_CreateNumber(number);
+    node->function = jsex_rt_value;
     ++(*tokens);
-    return 0;
+    return node;
 }
 
-int jsex_parse_string(jsex_token_t **tokens) {
+jsex_t * jsex_parse_string(const jsex_token_t ** tokens) {
+    char * string;
+    char * escape;
+    jsex_t * node;
+
     debug("jsex_parse_string(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type != LEX_STRING) {
         error("Expected %s, got '%s'", TOKENS[LEX_STRING], (*tokens)->string);
-        return -1;
+        return NULL;
+    }
+
+    // Duplicate string and remove quotes
+
+    string = strdup((*tokens)->string + 1);
+    string[strlen(string) - 1] = '\0';
+
+    // Escape characters
+
+    for (escape = string; escape = strchr(escape, '\\'), escape; ++escape) {
+        strcpy(escape, escape + 1);
+    }
+
+    node = calloc(1, sizeof(jsex_t));
+    node->value = cJSON_CreateString(string);
+    node->regex = malloc(sizeof(regex_t));
+    node->function = jsex_rt_value;
+
+    if (regcomp(node->regex, string, REG_EXTENDED)) {
+        debug("At jsex_parse_string(): not a regex.");
+        free(node->regex);
+        node->regex = NULL;
     }
 
     ++(*tokens);
-    return 0;
+    free(string);
+    return node;
+}
+
+/* Runtime functions **********************************************************/
+
+void jsex_rt_and(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+    result->type = result_p[0].type == cJSON_True && result_p[1].type == cJSON_True ? cJSON_True : cJSON_False;
+}
+
+void jsex_rt_or(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+    result->type = result_p[0].type == cJSON_True || result_p[1].type == cJSON_True ? cJSON_True : cJSON_False;
+}
+
+void jsex_rt_match(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p = CJSON_INITIALIZER;
+
+    node->args[0]->function(node->args[0], value, &result_p);
+    // node->args[1] should be a string literal, with corresponding regex
+
+    if (result_p.type == cJSON_String && node->args[1]->regex) {
+        result-> type = regexec(node->args[1]->regex, result_p.valuestring, 0, NULL, 0) ? cJSON_False : cJSON_True;
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = result_p[0].valuedouble < result_p[1].valuedouble ? cJSON_True : cJSON_False;
+    } else if (result_p[0].type == cJSON_String && result_p[1].type == cJSON_String) {
+        result->type = strcmp(result_p[0].valuestring, result_p[1].valuestring) ? cJSON_False : cJSON_True;
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_not_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = result_p[0].valuedouble < result_p[1].valuedouble ? cJSON_False : cJSON_True;
+    } else if (result_p[0].type == cJSON_String && result_p[1].type == cJSON_String) {
+        result->type = strcmp(result_p[0].valuestring, result_p[1].valuestring) ? cJSON_True : cJSON_False;
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_greater_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = result_p[0].valuedouble >= result_p[1].valuedouble ? cJSON_True : cJSON_False;
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_less_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = result_p[0].valuedouble <= result_p[1].valuedouble ? cJSON_True : cJSON_False;
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_greater(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = result_p[0].valuedouble > result_p[1].valuedouble ? cJSON_True : cJSON_False;
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_less(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = result_p[0].valuedouble < result_p[1].valuedouble ? cJSON_True : cJSON_False;
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_add(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = cJSON_Number;
+        cJSON_SetNumberValue(result, result_p[0].valuedouble + result_p[1].valuedouble);
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_subtract(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = cJSON_Number;
+        cJSON_SetNumberValue(result, result_p[0].valuedouble - result_p[1].valuedouble);
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_multiply(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
+        result->type = cJSON_Number;
+        cJSON_SetNumberValue(result, result_p[0].valuedouble * result_p[1].valuedouble);
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_divide(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number && result_p[1].valuedouble != 0) {
+        result->type = cJSON_Number;
+        cJSON_SetNumberValue(result, result_p[0].valuedouble / result_p[1].valuedouble);
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_modulo(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+
+    node->args[0]->function(node->args[0], value, &result_p[0]);
+    node->args[1]->function(node->args[1], value, &result_p[1]);
+
+    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number && result_p[1].valueint != 0) {
+        result->type = cJSON_Number;
+        cJSON_SetNumberValue(result, (int)(result_p[0].valueint % result_p[1].valueint));
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_negate(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p = CJSON_INITIALIZER;
+
+    node->args[0]->function(node->args[0], value, &result_p);
+
+    switch (result_p.type) {
+    case cJSON_False:
+        result->type = cJSON_True;
+        break;
+
+    case cJSON_True:
+        result->type = cJSON_False;
+        break;
+
+    default:
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_opposite(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p = CJSON_INITIALIZER;
+
+    node->args[0]->function(node->args[0], value, &result_p);
+
+    if (result_p.type == cJSON_Number) {
+        result->type = cJSON_Number;
+        cJSON_SetNumberValue(result, -result_p.valuedouble);
+    } else {
+        result->type = cJSON_NULL;
+    }
+}
+
+void jsex_rt_int(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p = CJSON_INITIALIZER;
+
+    node->args[0]->function(node->args[0], value, &result_p);
+    result->type = cJSON_Number;
+    cJSON_SetNumberValue(result, jsex_cast_int(&result_p));
+}
+
+void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p = CJSON_INITIALIZER;
+
+    node->args[0]->function(node->args[0], value, &result_p);
+    result->type = cJSON_Number;
+    cJSON_SetNumberValue(result, cJSON_GetArraySize(&result_p));
+}
+
+void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p = CJSON_INITIALIZER;
+    char *string = "";
+    char buffer[64];
+
+    node->args[0]->function(node->args[0], value, &result_p);
+
+    switch (result_p.type) {
+    case cJSON_Invalid:
+        break;
+
+    case cJSON_False:
+        string = "false";
+        break;
+
+    case cJSON_True:
+        string = "true";
+        break;
+
+    case cJSON_NULL:
+        string = "null";
+        break;
+
+    case cJSON_Number:
+        snprintf(buffer, 64, "%f", value->valuedouble);
+        string = buffer;
+        break;
+
+    case cJSON_String:
+        string = result_p.valuestring;
+        break;
+
+    case cJSON_Array:
+    case cJSON_Object:
+        break;
+
+    case cJSON_Raw:
+        string = result_p.valuestring;
+        break;
+
+    default:
+        debug("At jsex_rt_string(): unknown value type (%d)", result_p.type);
+    }
+
+    result->type = cJSON_String;
+    result->valuestring = strdup(string);
+}
+
+void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON index = CJSON_INITIALIZER;
+    cJSON parent = CJSON_INITIALIZER;
+    const cJSON * result_p;
+
+    // Optional child node (left part of the member)
+
+    if (node->args[1]) {
+        node->args[1]->function(node->args[1], value, &parent);
+        result_p = &parent;
+    } else {
+        result_p = value;
+    }
+
+    result_p = cJSON_GetObjectItem(result_p, node->value->valuestring);
+
+    if (!result_p) {
+        result->type = cJSON_NULL;
+        return;
+    }
+
+    if (node->args[0]) {
+        node->args[0]->function(node->args[0], value, &index);
+        result_p = index.type == cJSON_Number ? cJSON_GetArrayItem(value, node->value->valueint) : NULL;
+
+        if (!result_p) {
+            result->type = cJSON_NULL;
+            return;
+        }
+    }
+
+    memcpy(result, result_p, sizeof(cJSON));
+}
+
+void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON array = CJSON_INITIALIZER;
+    cJSON result_p = CJSON_INITIALIZER;
+    cJSON * element;
+    cJSON * root;
+
+    node->args[0]->function(node->args[0], value, &array);
+
+    // If size == 0, return False
+
+    if (!array.child) {
+        result->type = cJSON_False;
+        return;
+    }
+
+    cJSON_ArrayForEach(element, &array) {
+        root = cJSON_CreateObject();
+        // TODO: Ain't sure...
+        cJSON_AddItemReferenceToObject(root, node->value->valuestring, element);
+
+        node->args[1]->function(node->args[1], root, &result_p);
+        cJSON_Delete(root);
+
+        if (!jsex_cast_bool(&result_p)) {
+            result->type = cJSON_False;
+            return;
+        }
+    }
+
+    result->type = cJSON_True;
+}
+
+void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON array = CJSON_INITIALIZER;
+    cJSON result_p = CJSON_INITIALIZER;
+    cJSON * element;
+    cJSON * root;
+
+    node->args[0]->function(node->args[0], value, &array);
+
+    cJSON_ArrayForEach(element, &array) {
+        root = cJSON_CreateObject();
+        // TODO: Ain't sure...
+        cJSON_AddItemReferenceToObject(root, node->value->valuestring, element);
+
+        node->args[1]->function(node->args[1], root, &result_p);
+        cJSON_Delete(root);
+
+        if (jsex_cast_bool(&result_p)) {
+            result->type = cJSON_True;
+            return;
+        }
+    }
+
+    result->type = cJSON_False;
+}
+
+void jsex_rt_value(const jsex_t * node, __attribute__((unused)) const cJSON * value, cJSON * result) {
+    memcpy(result, node->value, sizeof(cJSON));
+}
+
+/* Helper runtime functions ***************************************************/
+
+int jsex_cast_bool(const cJSON * value) {
+    switch (value->type) {
+    case cJSON_Invalid:
+    case cJSON_False:
+        return 0;
+    case cJSON_True:
+        return 1;
+    case cJSON_NULL:
+        return 0;
+    case cJSON_Number:
+        return value->valueint != 0;
+    case cJSON_String:
+        return *value->valuestring != '\0';
+    case cJSON_Array:
+    case cJSON_Object:
+        return value->child != NULL;
+    case cJSON_Raw:
+        return value->valuestring != '\0';
+    default:
+        debug("At jsex_cast_bool(): unknown value type (%d)", value->type);
+        return 0;
+    }
+}
+
+int jsex_cast_int(const cJSON * value) {
+    int number;
+    char * end;
+    cJSON * child;
+
+    switch (value->type) {
+    case cJSON_Invalid:
+    case cJSON_False:
+        return 0;
+
+    case cJSON_True:
+        return 1;
+
+    case cJSON_NULL:
+        return 0;
+
+    case cJSON_Number:
+        return value->valueint;
+
+    case cJSON_String:
+        number = (int)strtol(value->valuestring, &end, 10);
+        return end != value->valuestring ? number : 0;
+
+    case cJSON_Array:
+    case cJSON_Object:
+        return ((child = value->child) && !child->next) ? jsex_cast_int(child) : 0;
+
+    case cJSON_Raw:
+        return 0;
+
+    default:
+        debug("At jsex_cast_int(): unknown value type (%d)", value->type);
+        return 0;
+    }
 }
