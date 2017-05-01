@@ -12,7 +12,7 @@ RM = rm -f
 CFLAGS = -pipe -Wall -I$(INC)
 
 TARGET = jsex
-OBJECTS = main.o jsex.o
+OBJECTS = main.o jsex.o cJSON.o
 
 ifeq ($(DEBUG), 1)
 	CFLAGS += -g -Wextra -DDEBUG
