@@ -35,9 +35,9 @@
 #define LEX_LBRACKET    3
 #define LEX_RBRACKET    4
 #define LEX_COLON       5
-#define LEX_ID          6
-#define LEX_FLOAT       7
-#define LEX_INTEGER     8
+#define LEX_FLOAT       6
+#define LEX_INTEGER     7
+#define LEX_ID          8
 #define LEX_STRING      9
 #define LEX_DOT         10
 #define LEX_AND         11
@@ -69,9 +69,9 @@ static const char * PATTERNS[] = {
     "^\\[",
     "^\\]",
     "^:",
-    "^[A-Za-z0-9_]+",
     "^[0-9]*\\.[0-9]+",
     "^[0-9]+",
+    "^[A-Za-z0-9_]+",
     "^\"(\\\\\"|[^\"])*\"|'(\\\\'|[^'])*'",
     "^\\.",
     "^&&",
@@ -98,9 +98,9 @@ static const char * TOKENS[] = {
     "'['",
     "']'",
     "':'",
-    "identifier",
     "decimal",
     "integer",
+    "identifier",
     "string",
     "'.'",
     "'&&'",
