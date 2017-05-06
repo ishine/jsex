@@ -272,11 +272,12 @@ jsex_token_t * jsex_lexer(const char *input) {
         input += offset;
     }
 
+    tokens = realloc(tokens, sizeof(jsex_token_t) * (i + 1));
+    tokens[i].type = LEX_NONE;
+    tokens[i].string = NULL;
+
     if (token < 0) {
         error("At jsex_lexer(): near '%.10s'", input);
-        tokens = realloc(tokens, sizeof(jsex_token_t) * (i + 1));
-        tokens[i].type = LEX_NONE;
-        tokens[i].string = NULL;
         jsex_token_free(tokens);
         return NULL;
     }
