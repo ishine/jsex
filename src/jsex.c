@@ -1297,6 +1297,55 @@ cJSON * jsex_rt_add(const jsex_t * node, const cJSON * value) {
     cJSON * result = node->args[0]->function(node->args[0], value);
     cJSON * aux;
     double number;
+    char * string;
+    size_t offset;
+
+    switch (result->type) {
+    case cJSON_Number:
+        aux = node->args[1]->function(node->args[1], value);
+
+        if (cJSON_IsNumber(aux)) {
+            number = result->valuedouble + aux->valuedouble;
+            debug_rt("jsex_rt: (%f + %f) -> %f", result->valuedouble, aux->valuedouble, number);
+            cJSON_SetNumberValue(result, number);
+        } else {
+            debug_rt("jsex_rt: (%f + ) -> null", result->valuedouble);
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(aux);
+        break;
+
+    case cJSON_String:
+        aux = node->args[1]->function(node->args[1], value);
+
+        if (cJSON_IsString(aux)) {
+            offset = strlen(result->valuestring);
+            string = malloc(offset + strlen(aux->valuestring) + 1);
+            strcpy(string, result->valuestring);
+            strcpy(string + offset, aux->valuestring);
+            debug_rt("jsex_rt: (%s + %s) -> %s", result->valuestring, aux->valuestring, string);
+            free(result->valuestring);
+            result->valuestring = string;
+        } else {
+            debug_rt("jsex_rt: (%s + ) -> null", result->valuestring);
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(aux);
+
+        break;
+
+    default:
+        debug_rt("jsex_rt: ( + ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
+
+    }
+
+    return result;
 
     if (cJSON_IsNumber(result)) {
         aux = node->args[1]->function(node->args[1], value);
