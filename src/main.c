@@ -24,7 +24,13 @@ int main(int argc, char **argv) {
     }
 
     if (argc == 2) {
-        while (getline(&line, &linecap, stdin) >= 0) {
+        while (1) {
+            printf(">>> ");
+            fflush(stdout);
+            if (getline(&line, &linecap, stdin) < 0) {
+                break;
+            }
+
             delimiter = strchr(line, '\n');
 
             if (delimiter) {
@@ -38,7 +44,7 @@ int main(int argc, char **argv) {
             if (jsex = jsex_parse(line), jsex) {
                 jresult = jsex_exec(jsex, json);
                 cresult = cJSON_PrintUnformatted(jresult);
-                printf("Result: %s\n\n", cresult);
+                printf("%s\n\n", cresult);
                 free(cresult);
                 cJSON_Delete(jresult);
                 jsex_free(jsex);
@@ -46,19 +52,21 @@ int main(int argc, char **argv) {
                 printf("JSex parser error.\n\n");
             }
         }
+
+        printf("\n");
     } else {
         for (i = 2; i < argc; i++) {
-            printf("\nParsing: %s\n", argv[i]);
+            printf("Parsing: %s\n", argv[i]);
 
             if (jsex = jsex_parse(argv[i]), jsex) {
                 jresult = jsex_exec(jsex, json);
                 cresult = cJSON_PrintUnformatted(jresult);
-                printf("Result: %s\n", cresult);
+                printf("Result: %s\n\n", cresult);
                 free(cresult);
                 cJSON_Delete(jresult);
                 jsex_free(jsex);
             } else {
-                printf("JSex parser error.\n");
+                printf("JSex parser error.\n\n");
             }
         }
     }
