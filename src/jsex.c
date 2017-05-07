@@ -652,8 +652,8 @@ jsex_t * jsex_parse_factor(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        if ((*tokens)->type != LEX_LPAREN) {
-            error("Expected %s, got '%s'", TOKENS[LEX_LPAREN], (*tokens)->string);
+        if ((*tokens)->type != LEX_RPAREN) {
+            error("Expected %s, got '%s'", TOKENS[LEX_RPAREN], (*tokens)->string);
             goto error;
         }
 
