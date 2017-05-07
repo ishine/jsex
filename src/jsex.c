@@ -1014,8 +1014,10 @@ void jsex_rt_match(const jsex_t * node, const cJSON * value, cJSON * result) {
 
     if (result_p.type == cJSON_String && node->args[1]->regex) {
         result-> type = regexec(node->args[1]->regex, result_p.valuestring, 0, NULL, 0) ? cJSON_False : cJSON_True;
+        debug("jsex_rt: ('%s' =~ '%s') -> %s", result_p.valuestring, node->args[1]->value->valuestring, result->type == cJSON_True ? "True" : "False");
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (=~) -> null");
     }
 }
 
@@ -1026,11 +1028,14 @@ void jsex_rt_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
     node->args[1]->function(node->args[1], value, &result_p[1]);
 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble < result_p[1].valuedouble ? cJSON_True : cJSON_False;
+        result->type = result_p[0].valuedouble == result_p[1].valuedouble ? cJSON_True : cJSON_False;
+        debug("jsex_rt: (%f == %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
     } else if (result_p[0].type == cJSON_String && result_p[1].type == cJSON_String) {
         result->type = strcmp(result_p[0].valuestring, result_p[1].valuestring) ? cJSON_False : cJSON_True;
+        debug("jsex_rt: ('%s' == '%s') -> %s", result_p[0].valuestring, result_p[1].valuestring, result->type == cJSON_True ? "true" : "false");
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (==) -> null");
     }
 }
 
@@ -1041,11 +1046,14 @@ void jsex_rt_not_equal(const jsex_t * node, const cJSON * value, cJSON * result)
     node->args[1]->function(node->args[1], value, &result_p[1]);
 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble < result_p[1].valuedouble ? cJSON_False : cJSON_True;
+        result->type = result_p[0].valuedouble != result_p[1].valuedouble ? cJSON_False : cJSON_True;
+        debug("jsex_rt: (%f != %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
     } else if (result_p[0].type == cJSON_String && result_p[1].type == cJSON_String) {
         result->type = strcmp(result_p[0].valuestring, result_p[1].valuestring) ? cJSON_True : cJSON_False;
+        debug("jsex_rt: ('%s' != '%s') -> %s", result_p[0].valuestring, result_p[1].valuestring, result->type == cJSON_True ? "true" : "false");
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (!=) -> null");
     }
 }
 
@@ -1057,8 +1065,10 @@ void jsex_rt_greater_equal(const jsex_t * node, const cJSON * value, cJSON * res
 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
         result->type = result_p[0].valuedouble >= result_p[1].valuedouble ? cJSON_True : cJSON_False;
+        debug("jsex_rt: (%f >= %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (>=) -> null");
     }
 }
 
@@ -1070,8 +1080,10 @@ void jsex_rt_less_equal(const jsex_t * node, const cJSON * value, cJSON * result
 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
         result->type = result_p[0].valuedouble <= result_p[1].valuedouble ? cJSON_True : cJSON_False;
+        debug("jsex_rt: (%f <= %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (<=) -> null");
     }
 }
 
@@ -1083,8 +1095,10 @@ void jsex_rt_greater(const jsex_t * node, const cJSON * value, cJSON * result) {
 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
         result->type = result_p[0].valuedouble > result_p[1].valuedouble ? cJSON_True : cJSON_False;
+        debug("jsex_rt: (%f > %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (>) -> null");
     }
 }
 
@@ -1096,8 +1110,10 @@ void jsex_rt_less(const jsex_t * node, const cJSON * value, cJSON * result) {
 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
         result->type = result_p[0].valuedouble < result_p[1].valuedouble ? cJSON_True : cJSON_False;
+        debug("jsex_rt: (%f < %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (<) -> null");
     }
 }
 
@@ -1110,8 +1126,10 @@ void jsex_rt_add(const jsex_t * node, const cJSON * value, cJSON * result) {
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
         result->type = cJSON_Number;
         cJSON_SetNumberValue(result, result_p[0].valuedouble + result_p[1].valuedouble);
+        debug("jsex_rt: (%f + %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (+) -> null");
     }
 }
 
@@ -1124,8 +1142,10 @@ void jsex_rt_subtract(const jsex_t * node, const cJSON * value, cJSON * result) 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
         result->type = cJSON_Number;
         cJSON_SetNumberValue(result, result_p[0].valuedouble - result_p[1].valuedouble);
+        debug("jsex_rt: (%f - %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (-) -> null");
     }
 }
 
@@ -1138,8 +1158,10 @@ void jsex_rt_multiply(const jsex_t * node, const cJSON * value, cJSON * result) 
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
         result->type = cJSON_Number;
         cJSON_SetNumberValue(result, result_p[0].valuedouble * result_p[1].valuedouble);
+        debug("jsex_rt: (%f / %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (*) -> null");
     }
 }
 
@@ -1152,8 +1174,10 @@ void jsex_rt_divide(const jsex_t * node, const cJSON * value, cJSON * result) {
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number && result_p[1].valuedouble != 0) {
         result->type = cJSON_Number;
         cJSON_SetNumberValue(result, result_p[0].valuedouble / result_p[1].valuedouble);
+        debug("jsex_rt: (%f / %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (/) -> null");
     }
 }
 
@@ -1166,8 +1190,10 @@ void jsex_rt_modulo(const jsex_t * node, const cJSON * value, cJSON * result) {
     if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number && result_p[1].valueint != 0) {
         result->type = cJSON_Number;
         cJSON_SetNumberValue(result, (int)(result_p[0].valueint % result_p[1].valueint));
+        debug("jsex_rt: (%f %% %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (%%) -> null");
     }
 }
 
@@ -1179,14 +1205,17 @@ void jsex_rt_negate(const jsex_t * node, const cJSON * value, cJSON * result) {
     switch (result_p.type) {
     case cJSON_False:
         result->type = cJSON_True;
+        debug("jsex_rt: (! false) -> true");
         break;
 
     case cJSON_True:
         result->type = cJSON_False;
+        debug("jsex_rt: (! true) -> false");
         break;
 
     default:
         result->type = cJSON_NULL;
+        debug("jsex_rt: (!) -> null");
     }
 }
 
@@ -1198,8 +1227,10 @@ void jsex_rt_opposite(const jsex_t * node, const cJSON * value, cJSON * result) 
     if (result_p.type == cJSON_Number) {
         result->type = cJSON_Number;
         cJSON_SetNumberValue(result, -result_p.valuedouble);
+        debug("jsex_rt: (- %f) -> %f", result_p.valuedouble, result->valuedouble);
     } else {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (-) -> null");
     }
 }
 
@@ -1209,6 +1240,7 @@ void jsex_rt_int(const jsex_t * node, const cJSON * value, cJSON * result) {
     node->args[0]->function(node->args[0], value, &result_p);
     result->type = cJSON_Number;
     cJSON_SetNumberValue(result, jsex_cast_int(&result_p));
+    debug("jsex_rt: (int) -> %d", result->valueint);
 }
 
 void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result) {
@@ -1217,6 +1249,7 @@ void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result) {
     node->args[0]->function(node->args[0], value, &result_p);
     result->type = cJSON_Number;
     cJSON_SetNumberValue(result, cJSON_GetArraySize(&result_p));
+    debug("jsex_rt: (size) -> %d", result->valueint);
 }
 
 void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result) {
@@ -1265,6 +1298,7 @@ void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result) {
 
     result->type = cJSON_String;
     result->valuestring = strdup(string);
+    debug("jsex_rt: (str) -> '%s'", result->valuestring);
 }
 
 void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) {
@@ -1285,6 +1319,7 @@ void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) 
 
     if (!result_p) {
         result->type = cJSON_NULL;
+        debug("jsex_rt: (.%s) -> null", node->value->valuestring);
         return;
     }
 
@@ -1294,8 +1329,13 @@ void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) 
 
         if (!result_p) {
             result->type = cJSON_NULL;
+            debug("jsex_rt: (.%s[%d]) -> null", node->value->valuestring, node->value->valueint);
             return;
         }
+
+        debug("jsex_rt: (.%s[%d]) -> (node)", node->value->valuestring, node->value->valueint);
+    } else {
+        debug("jsex_rt: (.%s) -> (node)", node->value->valuestring);
     }
 
     memcpy(result, result_p, sizeof(cJSON));
@@ -1313,6 +1353,7 @@ void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result) 
 
     if (!array.child) {
         result->type = cJSON_False;
+        debug("jsex_rt: (all '%s' in []) -> false", node->value->valuestring);
         return;
     }
 
@@ -1326,11 +1367,13 @@ void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result) 
 
         if (!jsex_cast_bool(&result_p)) {
             result->type = cJSON_False;
+            debug("jsex_rt: (all '%s' in [,]) -> false", node->value->valuestring);
             return;
         }
     }
 
     result->type = cJSON_True;
+    debug("jsex_rt: (all '%s' in [,]) -> true", node->value->valuestring);
 }
 
 void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result) {
@@ -1351,11 +1394,13 @@ void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result) 
 
         if (jsex_cast_bool(&result_p)) {
             result->type = cJSON_True;
+            debug("jsex_rt: (any '%s' in [,]) -> true", node->value->valuestring);
             return;
         }
     }
 
     result->type = cJSON_False;
+    debug("jsex_rt: (any '%s' in [,]) -> false", node->value->valuestring);
 }
 
 void jsex_rt_value(const jsex_t * node, __attribute__((unused)) const cJSON * value, cJSON * result) {
