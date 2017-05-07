@@ -7,9 +7,11 @@ int main(int argc, char **argv) {
     int i;
     char * line;
     char * delimiter;
+    char * cresult;
     size_t linecap;
     jsex_t * jsex;
     cJSON * json;
+    cJSON * jresult;
 
     if (argc < 2) {
         fprintf(stderr, "ERROR: No JSON given.\nSyntax: %s <JSON> [ <query> ]\n", argv[0]);
@@ -34,7 +36,11 @@ int main(int argc, char **argv) {
             }
 
             if (jsex = jsex_parse(line), jsex) {
-                printf("Result: %s\n\n", jsex_exec(jsex, json) ? "True" : "False");
+                jresult = jsex_exec(jsex, json);
+                cresult = cJSON_PrintUnformatted(jresult);
+                printf("Result: %s\n\n", cresult);
+                free(cresult);
+                cJSON_Delete(jresult);
                 jsex_free(jsex);
             } else {
                 printf("JSex parser error.\n\n");
@@ -45,7 +51,11 @@ int main(int argc, char **argv) {
             printf("\nParsing: %s\n", argv[i]);
 
             if (jsex = jsex_parse(argv[i]), jsex) {
-                printf("Result: %s\n", jsex_exec(jsex, json) ? "True" : "False");
+                jresult = jsex_exec(jsex, json);
+                cresult = cJSON_PrintUnformatted(jresult);
+                printf("Result: %s\n", cresult);
+                free(cresult);
+                cJSON_Delete(jresult);
                 jsex_free(jsex);
             } else {
                 printf("JSex parser error.\n");

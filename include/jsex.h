@@ -17,7 +17,8 @@ typedef struct jsex_t {
 } jsex_t;
 
 jsex_t * jsex_parse(const char * input);
-int jsex_exec(const jsex_t * node, cJSON * value);
+cJSON * jsex_exec(const jsex_t * node, cJSON * value);
+int jsex_test(const jsex_t * node, cJSON * value);
 void jsex_free(jsex_t * node);
 void jsex_cleanup();
 

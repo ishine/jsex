@@ -234,10 +234,26 @@ error:
     return NULL;
 }
 
-int jsex_exec(const jsex_t * node, cJSON * value) {
+cJSON * jsex_exec(const jsex_t * node, cJSON * value) {
+    cJSON * result;
+
+    profile_start();
+    result = cJSON_CreateObject();
+    node->function(node, value, result);
+    profile_print("jsex_exec()");
+    return result;
+}
+
+int jsex_test(const jsex_t * node, cJSON * value) {
+    int retval;
     cJSON result = CJSON_INITIALIZER;
+
+    profile_start();
     node->function(node, value, &result);
-    return jsex_cast_bool(&result);
+    retval = jsex_cast_bool(&result);
+    free(result.valuestring);
+    profile_print("jsex_test()");
+    return retval;
 }
 
 void jsex_free(jsex_t * node) {
@@ -1006,7 +1022,7 @@ jsex_t * jsex_parse_string(const jsex_token_t ** tokens) {
     node->function = jsex_rt_value;
 
     if (regcomp(node->regex, string, REG_EXTENDED)) {
-        debug( "At jsex_parse_string(): not a regex.");
+        debug("At jsex_parse_string(): not a regex.");
         free(node->regex);
         node->regex = NULL;
     }
@@ -1536,7 +1552,7 @@ void jsex_cast_string(const cJSON * value, char ** result) {
         break;
 
     default:
-        debug( "At jsex_cast_string(): unknown value type (%d)", value->type);
+        debug("At jsex_cast_string(): unknown value type (%d)", value->type);
     }
 
     *result = strdup(string);
