@@ -145,6 +145,7 @@ static const char * const KEYWORD_NULL = "null";
 
 static const char * const FUNCTION_INT = "int";
 static const char * const FUNCTION_STRING = "str";
+static const char * const FUNCTION_BOOL = "bool";
 static const char * const FUNCTION_SIZE = "size";
 
 static regex_t * regexes = NULL;
@@ -186,6 +187,7 @@ static void jsex_rt_opposite(const jsex_t * node, const cJSON * value, cJSON * r
 static void jsex_rt_int(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_bool(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_index(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result);
@@ -734,6 +736,8 @@ jsex_t * jsex_parse_function(const jsex_token_t ** tokens) {
         node->function = jsex_rt_size;
     } else if (strcmp((*tokens)->string, FUNCTION_STRING) == 0) {
         node->function = jsex_rt_string;
+    } else if (strcmp((*tokens)->string, FUNCTION_BOOL) == 0) {
+        node->function = jsex_rt_bool;
     } else {
         error("Invalid function");
         goto error;
@@ -1324,6 +1328,15 @@ void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result) {
     result->type = cJSON_String;
     result->valuestring = strdup(string);
     debug_rt("jsex_rt: (str) -> '%s'", result->valuestring);
+}
+
+void jsex_rt_bool(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON result_p = CJSON_INITIALIZER;
+
+    node->args[0]->function(node->args[0], value, &result_p);
+    result->type = cJSON_Number;
+    cJSON_SetNumberValue(result, jsex_cast_bool(&result_p));
+    debug_rt("jsex_rt: (bool) -> '%s'", result->type == cJSON_True ? "true" : "false");
 }
 
 void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) {
