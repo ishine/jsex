@@ -728,11 +728,11 @@ jsex_t * jsex_parse_function(const jsex_token_t ** tokens) {
 
     node = calloc(1, sizeof(jsex_t));
 
-    if (strcmp((*tokens)->string, FUNCTION_INT)) {
+    if (strcmp((*tokens)->string, FUNCTION_INT) == 0) {
         node->function = jsex_rt_int;
-    } else if (strcmp((*tokens)->string, FUNCTION_SIZE)) {
+    } else if (strcmp((*tokens)->string, FUNCTION_SIZE) == 0) {
         node->function = jsex_rt_size;
-    } else if (strcmp((*tokens)->string, FUNCTION_STRING)) {
+    } else if (strcmp((*tokens)->string, FUNCTION_STRING) == 0) {
         node->function = jsex_rt_string;
     } else {
         error("Invalid function");
