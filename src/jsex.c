@@ -45,8 +45,6 @@
   #define profile_print(name)
 #endif
 
-#define CJSON_INITIALIZER { NULL, NULL, NULL, 0, NULL, 0, 0, NULL }
-
 #define LEX_NONE        0
 #define LEX_LPAREN      1
 #define LEX_RPAREN      2
@@ -168,35 +166,35 @@ static jsex_t * jsex_parse_float(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_integer(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_string(const jsex_token_t ** tokens);
 
-static void jsex_rt_and(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_or(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_match(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_equal(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_not_equal(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_greater_equal(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_less_equal(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_greater(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_less(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_add(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_subtract(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_multiply(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_divide(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_modulo(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_negate(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_opposite(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_int(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_bool(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_index(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result);
-static void jsex_rt_value(const jsex_t * node, const cJSON * value, cJSON * result);
+static cJSON * jsex_rt_and(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_or(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_match(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_equal(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_not_equal(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_greater_equal(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_less_equal(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_greater(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_less(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_add(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_subtract(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_multiply(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_divide(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_modulo(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_negate(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_opposite(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_int(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_size(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_string(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_bool(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_variable(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_index(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_loop_all(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_loop_any(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_value(const jsex_t * node, const cJSON * value);
 
-static int jsex_cast_bool(const cJSON * value);
-static int jsex_cast_int(const cJSON * value);
-static void jsex_cast_string(const cJSON * value, char ** result);
+static cJSON * jsex_cast_bool(const cJSON * value);
+static cJSON * jsex_cast_int(const cJSON * value);
+static cJSON * jsex_cast_string(const cJSON * value);
 
 /* Public functions ***********************************************************/
 
@@ -238,20 +236,22 @@ cJSON * jsex_exec(const jsex_t * node, cJSON * value) {
     cJSON * result;
 
     profile_start();
-    result = cJSON_CreateObject();
-    node->function(node, value, result);
+    result = node->function(node, value);
     profile_print("jsex_exec()");
     return result;
 }
 
 int jsex_test(const jsex_t * node, cJSON * value) {
     int retval;
-    cJSON result = CJSON_INITIALIZER;
+    cJSON * result;
+    cJSON * temp;
 
     profile_start();
-    node->function(node, value, &result);
-    retval = jsex_cast_bool(&result);
-    free(result.valuestring);
+    temp = node->function(node, value);
+    result = jsex_cast_bool(temp);
+    retval = cJSON_IsTrue(result);
+    cJSON_Delete(temp);
+    cJSON_Delete(result);
     profile_print("jsex_test()");
     return retval;
 }
@@ -381,7 +381,11 @@ int jsex_lexer_next(const char *input, int *offset) {
         switch (errcode) {
         case 0:
             *offset = match.rm_eo;
-            debug_lexer("jsex_lexer_next(): [%s] %.*s", TOKENS[i], (int)match.rm_eo, input);
+
+            if (i > 0) {
+                debug_lexer("jsex_lexer_next(): [%s] %.*s", TOKENS[i], (int)match.rm_eo, input);
+            }
+
             return i;
 
         case REG_NOMATCH:
@@ -405,7 +409,7 @@ jsex_t * jsex_parse_query(const jsex_token_t ** tokens) {
     jsex_t * node = NULL;
     jsex_t * parent;
     jsex_t * sibling;
-    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+    cJSON * (* function)(const jsex_t *, const cJSON *);
 
     debug_parser("jsex_parse_query(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
@@ -452,7 +456,7 @@ jsex_t * jsex_parse_sentence(const jsex_token_t ** tokens) {
     jsex_t * node = NULL;
     jsex_t * parent;
     jsex_t * sibling;
-    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+    cJSON * (* function)(const jsex_t *, const cJSON *);
 
     debug_parser("jsex_parse_sentence(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
@@ -539,7 +543,7 @@ jsex_t * jsex_parse_expression(const jsex_token_t ** tokens) {
     jsex_t * node = NULL;
     jsex_t * parent;
     jsex_t * sibling;
-    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+    cJSON * (* function)(const jsex_t *, const cJSON *);
 
     debug_parser("jsex_parse_expression(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
@@ -586,7 +590,7 @@ jsex_t * jsex_parse_term(const jsex_token_t ** tokens) {
     jsex_t * node = NULL;
     jsex_t * parent;
     jsex_t * sibling;
-    void (*function)(const jsex_t *, const cJSON *, cJSON *);
+    cJSON * (* function)(const jsex_t *, const cJSON *);
 
     debug_parser("jsex_parse_term(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
@@ -938,7 +942,7 @@ jsex_t * jsex_parse_null(const jsex_token_t ** tokens) {
     node->value = cJSON_CreateNull();
     node->function = jsex_rt_value;
     ++(*tokens);
-    return 0;
+    return node;;
 }
 
 jsex_t * jsex_parse_float(const jsex_token_t ** tokens) {
@@ -1034,221 +1038,378 @@ jsex_t * jsex_parse_string(const jsex_token_t ** tokens) {
 
 /* Runtime functions **********************************************************/
 
-void jsex_rt_and(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_and(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
+    cJSON * temp;
+    int type;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
-    result->type = result_p[0].type == cJSON_True && result_p[1].type == cJSON_True ? cJSON_True : cJSON_False;
-    debug_rt("jsex_rt: (&&) -> %s", result->type == cJSON_True ? "true" : "false");
+    if (cJSON_IsBool(result)) {
+        temp = node->args[1]->function(node->args[1], value);
+
+        if (cJSON_IsBool(temp)) {
+            type = cJSON_IsTrue(result) && cJSON_IsTrue(temp) ? cJSON_True : cJSON_False;
+            debug_rt("jsex_rt: (%s && %s) -> %s", cJSON_IsTrue(result) ? "true" : "false", cJSON_IsTrue(temp) ? "true" : "false", type == cJSON_True ? "true" : "false");
+            result->type = type;
+        } else {
+            debug_rt("jsex_rt: (%s && (unknown) ) -> null", cJSON_IsTrue(result) ? "true" : "false");
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(temp);
+    } else {
+        debug_rt("jsex_rt: ( (unknown) && (unknown) ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
+    }
+
+    return result;
 }
 
-void jsex_rt_or(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_or(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
+    cJSON * temp;
+    int type;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
-    result->type = result_p[0].type == cJSON_True || result_p[1].type == cJSON_True ? cJSON_True : cJSON_False;
-    debug_rt("jsex_rt: (||) -> %s", result->type == cJSON_True ? "true" : "false");
-}
+    if (cJSON_IsBool(result)) {
+        temp = node->args[1]->function(node->args[1], value);
 
-void jsex_rt_match(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p = CJSON_INITIALIZER;
+        if (cJSON_IsBool(temp)) {
+            type = cJSON_IsTrue(result) || cJSON_IsTrue(temp) ? cJSON_True : cJSON_False;
+            debug_rt("jsex_rt: (%s || %s) -> %s", cJSON_IsTrue(result) ? "true" : "false", cJSON_IsTrue(temp) ? "true" : "false", type == cJSON_True ? "true" : "false");
+            result->type = type;
+        } else {
+            debug_rt("jsex_rt: (%s || ) -> null", cJSON_IsTrue(result) ? "true" : "false");
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
 
-    node->args[0]->function(node->args[0], value, &result_p);
+        cJSON_Delete(temp);
+    } else {
+        debug_rt("jsex_rt: ( || ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
+    }
+
+    return result;}
+
+cJSON * jsex_rt_match(const jsex_t * node, const cJSON * value) {
+    cJSON * left;
+    cJSON * result;
+
     // node->args[1] should be a string literal, with corresponding regex
 
-    if (result_p.type == cJSON_String && node->args[1]->regex) {
-        result-> type = regexec(node->args[1]->regex, result_p.valuestring, 0, NULL, 0) ? cJSON_False : cJSON_True;
-        debug_rt("jsex_rt: ('%s' =~ '%s') -> %s", result_p.valuestring, node->args[1]->value->valuestring, result->type == cJSON_True ? "True" : "False");
+    if (node->args[1]->regex) {
+        left = node->args[0]->function(node->args[0], value);
+
+        if (cJSON_IsString(left)) {
+            result = cJSON_CreateBool(regexec(node->args[1]->regex, left->valuestring, 0, NULL, 0) == 0);
+            debug_rt("jsex_rt: ('%s' =~ '%s') -> %s", left->valuestring, node->args[1]->value->valuestring, cJSON_IsTrue(result) ? "true" : "false");
+        } else {
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: ( =~ '%s') -> null", node->args[1]->value->valuestring);
+        }
+
+        cJSON_Delete(left);
+
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (=~) -> null");
+        result = cJSON_CreateNull();
+        debug_rt("jsex_rt: ( =~ ) -> null");
     }
+
+    return result;
 }
 
-void jsex_rt_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_equal(const jsex_t * node, const cJSON * value) {
+    cJSON * left = node->args[0]->function(node->args[0], value);
+    cJSON * right = node->args[1]->function(node->args[1], value);
+    cJSON * result;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
-
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble == result_p[1].valuedouble ? cJSON_True : cJSON_False;
-        debug_rt("jsex_rt: (%f == %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
-    } else if (result_p[0].type == cJSON_String && result_p[1].type == cJSON_String) {
-        result->type = strcmp(result_p[0].valuestring, result_p[1].valuestring) ? cJSON_False : cJSON_True;
-        debug_rt("jsex_rt: ('%s' == '%s') -> %s", result_p[0].valuestring, result_p[1].valuestring, result->type == cJSON_True ? "true" : "false");
+    if (cJSON_IsNumber(left) && cJSON_IsNumber(right)) {
+        result = cJSON_CreateBool(left->valuedouble == right->valuedouble);
+        debug_rt("jsex_rt: (%f == %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+    } else if (cJSON_IsString(left) && cJSON_IsString(right)) {
+        result = cJSON_CreateBool(strcmp(left->valuestring, right->valuestring) == 0);
+        debug_rt("jsex_rt: (%f == %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (==) -> null");
+        result = cJSON_CreateNull();
+        debug_rt("jsex_rt: ( == ) -> null");
     }
+
+    cJSON_Delete(left);
+    cJSON_Delete(right);
+    return result;
 }
 
-void jsex_rt_not_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_not_equal(const jsex_t * node, const cJSON * value) {
+    cJSON * left = node->args[0]->function(node->args[0], value);
+    cJSON * right = node->args[1]->function(node->args[1], value);
+    cJSON * result;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
-
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble != result_p[1].valuedouble ? cJSON_False : cJSON_True;
-        debug_rt("jsex_rt: (%f != %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
-    } else if (result_p[0].type == cJSON_String && result_p[1].type == cJSON_String) {
-        result->type = strcmp(result_p[0].valuestring, result_p[1].valuestring) ? cJSON_True : cJSON_False;
-        debug_rt("jsex_rt: ('%s' != '%s') -> %s", result_p[0].valuestring, result_p[1].valuestring, result->type == cJSON_True ? "true" : "false");
+    if (cJSON_IsNumber(left) && cJSON_IsNumber(right)) {
+        result = cJSON_CreateBool(left->valuedouble != right->valuedouble);
+        debug_rt("jsex_rt: (%f != %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+    } else if (cJSON_IsString(left) && cJSON_IsString(right)) {
+        result = cJSON_CreateBool(strcmp(left->valuestring, right->valuestring) != 0);
+        debug_rt("jsex_rt: (%f != %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (!=) -> null");
+        result = cJSON_CreateNull();
+        debug_rt("jsex_rt: ( != ) -> null");
     }
+
+    cJSON_Delete(left);
+    cJSON_Delete(right);
+    return result;
 }
 
-void jsex_rt_greater_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_greater_equal(const jsex_t * node, const cJSON * value) {
+    cJSON * left = node->args[0]->function(node->args[0], value);
+    cJSON * right;
+    cJSON * result;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(left)) {
+        right = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble >= result_p[1].valuedouble ? cJSON_True : cJSON_False;
-        debug_rt("jsex_rt: (%f >= %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
+        if (cJSON_IsNumber(right)) {
+            result = cJSON_CreateBool(left->valuedouble >= right->valuedouble);
+            debug_rt("jsex_rt: (%f >= %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+        } else {
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%f >= ) -> null", left->valuedouble);
+        }
+
+        cJSON_Delete(right);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (>=) -> null");
+        debug_rt("jsex_rt: ( >= ) -> null");
+        result = cJSON_CreateNull();
     }
+
+    cJSON_Delete(left);
+    return result;
 }
 
-void jsex_rt_less_equal(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_less_equal(const jsex_t * node, const cJSON * value) {
+    cJSON * left = node->args[0]->function(node->args[0], value);
+    cJSON * right;
+    cJSON * result;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(left)) {
+        right = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble <= result_p[1].valuedouble ? cJSON_True : cJSON_False;
-        debug_rt("jsex_rt: (%f <= %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
+        if (cJSON_IsNumber(right)) {
+            result = cJSON_CreateBool(left->valuedouble <= right->valuedouble);
+            debug_rt("jsex_rt: (%f <= %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+        } else {
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%f <= ) -> null", left->valuedouble);
+        }
+
+        cJSON_Delete(right);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (<=) -> null");
+        debug_rt("jsex_rt: ( <= ) -> null");
+        result = cJSON_CreateNull();
     }
+
+    cJSON_Delete(left);
+    return result;
 }
 
-void jsex_rt_greater(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_greater(const jsex_t * node, const cJSON * value) {
+    cJSON * left = node->args[0]->function(node->args[0], value);
+    cJSON * right;
+    cJSON * result;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(left)) {
+        right = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble > result_p[1].valuedouble ? cJSON_True : cJSON_False;
-        debug_rt("jsex_rt: (%f > %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
+        if (cJSON_IsNumber(right)) {
+            result = cJSON_CreateBool(left->valuedouble > right->valuedouble);
+            debug_rt("jsex_rt: (%f > %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+        } else {
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%f > ) -> null", left->valuedouble);
+        }
+
+        cJSON_Delete(right);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (>) -> null");
+        debug_rt("jsex_rt: ( > ) -> null");
+        result = cJSON_CreateNull();
     }
+
+    cJSON_Delete(left);
+    return result;
 }
 
-void jsex_rt_less(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_less(const jsex_t * node, const cJSON * value) {
+    cJSON * left = node->args[0]->function(node->args[0], value);
+    cJSON * right;
+    cJSON * result;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(left)) {
+        right = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = result_p[0].valuedouble < result_p[1].valuedouble ? cJSON_True : cJSON_False;
-        debug_rt("jsex_rt: (%f < %f) -> %s", result_p[0].valuedouble, result_p[1].valuedouble, result->type == cJSON_True ? "true" : "false");
+        if (cJSON_IsNumber(right)) {
+            result = cJSON_CreateBool(left->valuedouble < right->valuedouble);
+            debug_rt("jsex_rt: (%f < %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+        } else {
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%f < ) -> null", left->valuedouble);
+        }
+
+        cJSON_Delete(right);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (<) -> null");
+        debug_rt("jsex_rt: ( < ) -> null");
+        result = cJSON_CreateNull();
     }
+
+    cJSON_Delete(left);
+    return result;
 }
 
-void jsex_rt_add(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_add(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
+    cJSON * aux;
+    double number;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(result)) {
+        aux = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = cJSON_Number;
-        cJSON_SetNumberValue(result, result_p[0].valuedouble + result_p[1].valuedouble);
-        debug_rt("jsex_rt: (%f + %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
+        if (cJSON_IsNumber(aux)) {
+            number = result->valuedouble + aux->valuedouble;
+            debug_rt("jsex_rt: (%f + %f) -> %f", result->valuedouble, aux->valuedouble, number);
+            cJSON_SetNumberValue(result, number);
+        } else {
+            debug_rt("jsex_rt: (%f + ) -> null", result->valuedouble);
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(aux);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (+) -> null");
+        debug_rt("jsex_rt: ( + ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
     }
+
+    return result;
 }
 
-void jsex_rt_subtract(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_subtract(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
+    cJSON * aux;
+    double number;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(result)) {
+        aux = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = cJSON_Number;
-        cJSON_SetNumberValue(result, result_p[0].valuedouble - result_p[1].valuedouble);
-        debug_rt("jsex_rt: (%f - %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
+        if (cJSON_IsNumber(aux)) {
+            number = result->valuedouble - aux->valuedouble;
+            debug_rt("jsex_rt: (%f - %f) -> %f", result->valuedouble, aux->valuedouble, number);
+            cJSON_SetNumberValue(result, number);
+        } else {
+            debug_rt("jsex_rt: (%f - ) -> null", result->valuedouble);
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(aux);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (-) -> null");
+        debug_rt("jsex_rt: ( - ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
     }
+
+    return result;
 }
 
-void jsex_rt_multiply(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_multiply(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
+    cJSON * aux;
+    double number;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(result)) {
+        aux = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number) {
-        result->type = cJSON_Number;
-        cJSON_SetNumberValue(result, result_p[0].valuedouble * result_p[1].valuedouble);
-        debug_rt("jsex_rt: (%f / %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
+        if (cJSON_IsNumber(aux)) {
+            number = result->valuedouble * aux->valuedouble;
+            debug_rt("jsex_rt: (%f * %f) -> %f", result->valuedouble, aux->valuedouble, number);
+            cJSON_SetNumberValue(result, number);
+        } else {
+            debug_rt("jsex_rt: (%f * ) -> null", result->valuedouble);
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(aux);
     } else {
-        result->type = cJSON_NULL;
         debug_rt("jsex_rt: (*) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
     }
+
+    return result;
 }
 
-void jsex_rt_divide(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_divide(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
+    cJSON * aux;
+    double number;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(result)) {
+        aux = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number && result_p[1].valuedouble != 0) {
-        result->type = cJSON_Number;
-        cJSON_SetNumberValue(result, result_p[0].valuedouble / result_p[1].valuedouble);
-        debug_rt("jsex_rt: (%f / %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
+        if (cJSON_IsNumber(aux) && aux->valuedouble != 0) {
+            number = result->valuedouble / aux->valuedouble;
+            debug_rt("jsex_rt: (%f / %f) -> %f", result->valuedouble, aux->valuedouble, number);
+            cJSON_SetNumberValue(result, number);
+        } else {
+            debug_rt("jsex_rt: (%f / ) -> null", result->valuedouble);
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(aux);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (/) -> null");
+        debug_rt("jsex_rt: ( / ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
     }
+
+    return result;
 }
 
-void jsex_rt_modulo(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p[2] = { CJSON_INITIALIZER, CJSON_INITIALIZER };
+cJSON * jsex_rt_modulo(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
+    cJSON * aux;
+    int number;
 
-    node->args[0]->function(node->args[0], value, &result_p[0]);
-    node->args[1]->function(node->args[1], value, &result_p[1]);
+    if (cJSON_IsNumber(result)) {
+        aux = node->args[1]->function(node->args[1], value);
 
-    if (result_p[0].type == cJSON_Number && result_p[1].type == cJSON_Number && result_p[1].valueint != 0) {
-        result->type = cJSON_Number;
-        cJSON_SetNumberValue(result, (int)(result_p[0].valueint % result_p[1].valueint));
-        debug_rt("jsex_rt: (%f %% %f) -> %f", result_p[0].valuedouble, result_p[1].valuedouble, result->valuedouble);
+        if (cJSON_IsNumber(aux) && aux->valueint != 0) {
+            number = result->valueint % aux->valueint;
+            debug_rt("jsex_rt: (%d %% %d) -> %d", result->valueint, aux->valueint, number);
+            cJSON_SetNumberValue(result, number);
+        } else {
+            debug_rt("jsex_rt: (%d %% ) -> null", result->valueint);
+            cJSON_Delete(result);
+            result = cJSON_CreateNull();
+        }
+
+        cJSON_Delete(aux);
     } else {
-        result->type = cJSON_NULL;
         debug_rt("jsex_rt: (%%) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
     }
+
+    return result;
 }
 
-void jsex_rt_negate(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p = CJSON_INITIALIZER;
+cJSON * jsex_rt_negate(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
 
-    node->args[0]->function(node->args[0], value, &result_p);
-
-    switch (result_p.type) {
+    switch (result->type) {
     case cJSON_False:
         result->type = cJSON_True;
         debug_rt("jsex_rt: (! false) -> true");
@@ -1260,249 +1421,286 @@ void jsex_rt_negate(const jsex_t * node, const cJSON * value, cJSON * result) {
         break;
 
     default:
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (!) -> null");
+        debug_rt("jsex_rt: (! ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
     }
+
+    return result;
 }
 
-void jsex_rt_opposite(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p = CJSON_INITIALIZER;
+cJSON * jsex_rt_opposite(const jsex_t * node, const cJSON * value) {
+    cJSON * result = node->args[0]->function(node->args[0], value);
 
-    node->args[0]->function(node->args[0], value, &result_p);
-
-    if (result_p.type == cJSON_Number) {
-        result->type = cJSON_Number;
-        cJSON_SetNumberValue(result, -result_p.valuedouble);
-        debug_rt("jsex_rt: (- %f) -> %f", result_p.valuedouble, result->valuedouble);
+    if (cJSON_IsNumber(result)) {
+        cJSON_SetNumberValue(result, -result->valuedouble);
+        debug_rt("jsex_rt: (- %f) -> %f", -result->valuedouble, result->valuedouble);
     } else {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: (-) -> null");
+        debug_rt("jsex_rt: (- ) -> null");
+        cJSON_Delete(result);
+        result = cJSON_CreateNull();
     }
+
+    return result;
 }
 
-void jsex_rt_int(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p = CJSON_INITIALIZER;
-
-    node->args[0]->function(node->args[0], value, &result_p);
-    result->type = cJSON_Number;
-    cJSON_SetNumberValue(result, jsex_cast_int(&result_p));
+cJSON * jsex_rt_int(const jsex_t * node, const cJSON * value) {
+    cJSON * temp = node->args[0]->function(node->args[0], value);
+    cJSON * result = jsex_cast_int(temp);
     debug_rt("jsex_rt: (int) -> %d", result->valueint);
+    cJSON_Delete(temp);
+    return result;
 }
 
-void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p = CJSON_INITIALIZER;
-
-    node->args[0]->function(node->args[0], value, &result_p);
-    result->type = cJSON_Number;
-    cJSON_SetNumberValue(result, cJSON_GetArraySize(&result_p));
+cJSON * jsex_rt_size(const jsex_t * node, const cJSON * value) {
+    cJSON * temp = node->args[0]->function(node->args[0], value);
+    cJSON * result = cJSON_CreateNumber(cJSON_GetArraySize(temp));
     debug_rt("jsex_rt: (size) -> %d", result->valueint);
+    cJSON_Delete(temp);
+    return result;
 }
 
-void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p = CJSON_INITIALIZER;
-
-    node->args[0]->function(node->args[0], value, &result_p);
-    result->type = cJSON_String;
-    jsex_cast_string(&result_p, &result->valuestring);
+cJSON * jsex_rt_string(const jsex_t * node, const cJSON * value) {
+    cJSON * temp = node->args[0]->function(node->args[0], value);
+    cJSON * result = jsex_cast_string(temp);
     debug_rt("jsex_rt: (str) -> '%s'", result->valuestring);
+    cJSON_Delete(temp);
+    return result;
 }
 
-void jsex_rt_bool(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON result_p = CJSON_INITIALIZER;
+cJSON * jsex_rt_bool(const jsex_t * node, const cJSON * value) {
+    cJSON * temp = node->args[0]->function(node->args[0], value);
+    cJSON * result = jsex_cast_bool(temp);
 
-    node->args[0]->function(node->args[0], value, &result_p);
-    result->type = cJSON_Number;
-    cJSON_SetNumberValue(result, jsex_cast_bool(&result_p));
-    debug_rt("jsex_rt: (bool) -> '%s'", result->type == cJSON_True ? "true" : "false");
+    debug_rt("jsex_rt: (bool) -> '%s'", cJSON_IsTrue(result) ? "true" : "false");
+    cJSON_Delete(temp);
+    return result;
 }
 
-void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON parent = CJSON_INITIALIZER;
-    const cJSON * result_p;
+cJSON * jsex_rt_variable(const jsex_t * node, const cJSON * value) {
+    cJSON * parent = NULL;
+    cJSON * temp;
+    cJSON * result;
+    const cJSON * domain;
 
     // Optional child node (left part of the member)
+    domain = node->args[0] ? (parent = node->args[0]->function(node->args[0], value)) : value;
 
-    if (node->args[0]) {
-        node->args[0]->function(node->args[0], value, &parent);
-        result_p = &parent;
+    if (temp = cJSON_GetObjectItem(domain, node->value->valuestring), temp) {
+        result = cJSON_Duplicate(temp, 1);
+        debug_rt("jsex_rt: (.%s) -> (node)", node->value->valuestring);
     } else {
-        result_p = value;
-    }
-
-    result_p = cJSON_GetObjectItem(result_p, node->value->valuestring);
-
-    if (!result_p) {
-        result->type = cJSON_NULL;
+        result = cJSON_CreateNull();
         debug_rt("jsex_rt: (.%s) -> null", node->value->valuestring);
-        return;
     }
 
-    debug_rt("jsex_rt: (.%s) -> (node)", node->value->valuestring);
-    memcpy(result, result_p, sizeof(cJSON));
+    if (parent) {
+        cJSON_Delete(parent);
+    }
+
+    return result;
 }
 
-void jsex_rt_index(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON index = CJSON_INITIALIZER;
-    cJSON parent = CJSON_INITIALIZER;
-    const cJSON * result_p;
+cJSON * jsex_rt_index(const jsex_t * node, const cJSON * value) {
+    cJSON * parent = NULL;
+    cJSON * index;
+    cJSON * temp;
+    cJSON * result;
+    const cJSON * domain;
 
     // Optional child node (left part of the member)
 
-    if (node->args[0]) {
-        node->args[0]->function(node->args[0], value, &parent);
-        result_p = &parent;
+    domain = node->args[0] ? (parent = node->args[0]->function(node->args[0], value)) : value;
+    index = node->args[1]->function(node->args[1], value);
+
+    if (cJSON_IsNumber(index)) {
+
+        if (temp = cJSON_GetArrayItem(domain, index->valueint), temp) {
+            result = cJSON_Duplicate(temp, 1);
+            debug_rt("jsex_rt: ([%d]) -> (node)", index->valueint);
+        } else {
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: ([%d]) -> null", index->valueint);
+        }
+
     } else {
-        result_p = value;
+        result = cJSON_CreateNull();
+        debug_rt("jsex_rt: ([]) -> null");
     }
 
-    node->args[1]->function(node->args[1], value, &index);
-    result_p = index.type == cJSON_Number ? cJSON_GetArrayItem(result_p, index.valueint) : NULL;
-
-    if (!result_p) {
-        result->type = cJSON_NULL;
-        debug_rt("jsex_rt: ([%d]) -> null", index.valueint);
-        return;
+    if (parent) {
+        cJSON_Delete(parent);
     }
 
-    debug_rt("jsex_rt: ([%d]) -> (node)", index.valueint);
-    memcpy(result, result_p, sizeof(cJSON));
+    cJSON_Delete(index);
+    return result;
 }
 
-void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON array = CJSON_INITIALIZER;
-    cJSON result_p = CJSON_INITIALIZER;
-    cJSON child = CJSON_INITIALIZER;
+cJSON * jsex_rt_loop_all(const jsex_t * node, const cJSON * value) {
+    cJSON * array;
+    cJSON * result;
+    cJSON child = { .string = node->value->valuestring };
     cJSON root = { .child = &child };
     cJSON * element;
 
-    node->args[0]->function(node->args[0], value, &array);
+    array = node->args[0]->function(node->args[0], value);
 
     // If size == 0, return False
 
-    if (!array.child) {
-        result->type = cJSON_False;
+    if (!array->child) {
         debug_rt("jsex_rt: (all '%s' in []) -> false", node->value->valuestring);
-        return;
+        cJSON_Delete(array);
+        return cJSON_CreateFalse();
     }
 
-    cJSON_ArrayForEach(element, &array) {
+    cJSON_ArrayForEach(element, array) {
         child.child = element->child;
         child.type = element->type;
         child.valuestring = element->valuestring;
         child.valueint = element->valueint;
         child.valuedouble = element->valuedouble;
-        child.string = node->value->valuestring;
-        node->args[1]->function(node->args[1], &root, &result_p);
 
-        if (!jsex_cast_bool(&result_p)) {
-            result->type = cJSON_False;
+        result = node->args[1]->function(node->args[1], &root);
+
+        if (cJSON_IsFalse(result)) {
             debug_rt("jsex_rt: (all '%s' in [,]) -> false", node->value->valuestring);
-            return;
+            cJSON_Delete(result);
+            cJSON_Delete(array);
+            return cJSON_CreateFalse();
+        } else {
+            cJSON_Delete(result);
         }
     }
 
-    result->type = cJSON_True;
     debug_rt("jsex_rt: (all '%s' in [,]) -> true", node->value->valuestring);
+    cJSON_Delete(array);
+    return cJSON_CreateTrue();
 }
 
-void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON array = CJSON_INITIALIZER;
-    cJSON result_p = CJSON_INITIALIZER;
-    cJSON child = CJSON_INITIALIZER;
+cJSON * jsex_rt_loop_any(const jsex_t * node, const cJSON * value) {
+    cJSON * array;
+    cJSON * result;
+    cJSON child = { .string = node->value->valuestring };
     cJSON root = { .child = &child };
     cJSON * element;
 
-    node->args[0]->function(node->args[0], value, &array);
+    array = node->args[0]->function(node->args[0], value);
 
-    cJSON_ArrayForEach(element, &array) {
+    cJSON_ArrayForEach(element, array) {
         child.child = element->child;
         child.type = element->type;
         child.valuestring = element->valuestring;
         child.valueint = element->valueint;
         child.valuedouble = element->valuedouble;
-        child.string = node->value->valuestring;
-        node->args[1]->function(node->args[1], &root, &result_p);
 
-        if (jsex_cast_bool(&result_p)) {
-            result->type = cJSON_True;
+        result = node->args[1]->function(node->args[1], &root);
+
+        if (cJSON_IsTrue(result)) {
             debug_rt("jsex_rt: (any '%s' in [,]) -> true", node->value->valuestring);
-            return;
+            cJSON_Delete(result);
+            cJSON_Delete(array);
+            return cJSON_CreateTrue();
+        } else {
+            cJSON_Delete(result);
         }
     }
 
-    result->type = cJSON_False;
     debug_rt("jsex_rt: (any '%s' in [,]) -> false", node->value->valuestring);
+    cJSON_Delete(array);
+    return cJSON_CreateFalse();
 }
 
-void jsex_rt_value(const jsex_t * node, __attribute__((unused)) const cJSON * value, cJSON * result) {
-    memcpy(result, node->value, sizeof(cJSON));
+cJSON * jsex_rt_value(const jsex_t * node, __attribute__((unused)) const cJSON * value) {
+    return cJSON_Duplicate(node->value, 0);
 }
 
 /* Helper runtime functions ***************************************************/
 
-int jsex_cast_bool(const cJSON * value) {
+cJSON * jsex_cast_bool(const cJSON * value) {
     cJSON * child;
+    int number = 0;
 
     switch (value->type) {
     case cJSON_Invalid:
     case cJSON_False:
-        return 0;
+        break;
+
     case cJSON_True:
-        return 1;
+        number = 1;
+        break;
+
     case cJSON_NULL:
-        return 0;
+        break;
+
     case cJSON_Number:
-        return value->valueint != 0;
+        number = value->valueint != 0;
+        break;
+
     case cJSON_String:
-        return *value->valuestring != '\0';
+        number = *value->valuestring != '\0';
+        break;
+
     case cJSON_Array:
     case cJSON_Object:
-        return ((child = value->child) && !child->next) ? jsex_cast_bool(child) : 0;
+        if (child = value->child, child && !child->next) {
+            return jsex_cast_bool(child);
+        }
+
+        break;
+
     case cJSON_Raw:
-        return value->valuestring != '\0';
+        number = value->valuestring != '\0';
     default:
         debug("At jsex_cast_bool(): unknown value type (%d)", value->type);
-        return 0;
     }
+
+    return cJSON_CreateBool(number);
 }
 
-int jsex_cast_int(const cJSON * value) {
-    int number;
+cJSON * jsex_cast_int(const cJSON * value) {
+    int number = 0;
     char * end;
     cJSON * child;
 
     switch (value->type) {
     case cJSON_Invalid:
     case cJSON_False:
-        return 0;
+        break;
 
     case cJSON_True:
-        return 1;
+        number = 1;
+        break;
 
     case cJSON_NULL:
-        return 0;
+        break;
 
     case cJSON_Number:
-        return value->valueint;
+        number = value->valueint;
+        break;
 
     case cJSON_String:
         number = (int)strtol(value->valuestring, &end, 10);
-        return end != value->valuestring ? number : 0;
+        number = end != value->valuestring ? number : 0;
+        break;
 
     case cJSON_Array:
     case cJSON_Object:
-        return ((child = value->child) && !child->next) ? jsex_cast_int(child) : 0;
+        if (child = value->child, child && !child->next) {
+            return jsex_cast_int(child);
+        }
+        break;
 
     case cJSON_Raw:
-        return 0;
+        break;
 
     default:
         debug("At jsex_cast_int(): unknown value type (%d)", value->type);
-        return 0;
     }
+
+    return cJSON_CreateNumber(number);
 }
 
-void jsex_cast_string(const cJSON * value, char ** result) {
+cJSON * jsex_cast_string(const cJSON * value) {
     cJSON * child;
     char *string = "";
     char buffer[64];
@@ -1541,9 +1739,8 @@ void jsex_cast_string(const cJSON * value, char ** result) {
 
     case cJSON_Array:
     case cJSON_Object:
-        if ((child = value->child) && !child->next, child) {
-            jsex_cast_string(child, result);
-            return;
+        if (child = value->child, child && !child->next) {
+            return jsex_cast_string(child);
         }
         break;
 
@@ -1555,5 +1752,5 @@ void jsex_cast_string(const cJSON * value, char ** result) {
         debug("At jsex_cast_string(): unknown value type (%d)", value->type);
     }
 
-    *result = strdup(string);
+    return cJSON_CreateString(string);
 }
