@@ -1041,26 +1041,39 @@ jsex_t * jsex_parse_string(const jsex_token_t ** tokens) {
 cJSON * jsex_rt_and(const jsex_t * node, const cJSON * value) {
     cJSON * result = node->args[0]->function(node->args[0], value);
     cJSON * temp;
-    int type;
 
-    if (cJSON_IsBool(result)) {
+    switch (result->type) {
+    case cJSON_False:
+        debug_rt("jsex_rt: (false && ) -> false");
+        break;
+
+    case cJSON_True:
         temp = node->args[1]->function(node->args[1], value);
 
-        if (cJSON_IsBool(temp)) {
-            type = cJSON_IsTrue(result) && cJSON_IsTrue(temp) ? cJSON_True : cJSON_False;
-            debug_rt("jsex_rt: (%s && %s) -> %s", cJSON_IsTrue(result) ? "true" : "false", cJSON_IsTrue(temp) ? "true" : "false", type == cJSON_True ? "true" : "false");
-            result->type = type;
-        } else {
-            debug_rt("jsex_rt: (%s && (unknown) ) -> null", cJSON_IsTrue(result) ? "true" : "false");
+        switch (temp->type) {
+        case cJSON_False:
+            result->type = cJSON_False;
+            debug_rt("jsex_rt: (true && false) -> false");
+            break;
+
+        case cJSON_True:
+            debug_rt("jsex_rt: (true && true) -> true");
+            break;
+
+        default:
+            debug_rt("jsex_rt: (true && ) -> null");
             cJSON_Delete(result);
             result = cJSON_CreateNull();
         }
 
         cJSON_Delete(temp);
-    } else {
-        debug_rt("jsex_rt: ( (unknown) && (unknown) ) -> null");
+        break;
+
+    default:
+        debug_rt("jsex_rt: ( && ) -> null");
         cJSON_Delete(result);
         result = cJSON_CreateNull();
+
     }
 
     return result;
@@ -1069,29 +1082,43 @@ cJSON * jsex_rt_and(const jsex_t * node, const cJSON * value) {
 cJSON * jsex_rt_or(const jsex_t * node, const cJSON * value) {
     cJSON * result = node->args[0]->function(node->args[0], value);
     cJSON * temp;
-    int type;
 
-    if (cJSON_IsBool(result)) {
+    switch (result->type) {
+    case cJSON_False:
         temp = node->args[1]->function(node->args[1], value);
 
-        if (cJSON_IsBool(temp)) {
-            type = cJSON_IsTrue(result) || cJSON_IsTrue(temp) ? cJSON_True : cJSON_False;
-            debug_rt("jsex_rt: (%s || %s) -> %s", cJSON_IsTrue(result) ? "true" : "false", cJSON_IsTrue(temp) ? "true" : "false", type == cJSON_True ? "true" : "false");
-            result->type = type;
-        } else {
-            debug_rt("jsex_rt: (%s || ) -> null", cJSON_IsTrue(result) ? "true" : "false");
+        switch (temp->type) {
+        case cJSON_False:
+            debug_rt("jsex_rt: (false || false) -> false");
+            break;
+
+        case cJSON_True:
+            result->type = cJSON_True;
+            debug_rt("jsex_rt: (false || true) -> true");
+            break;
+
+        default:
+            debug_rt("jsex_rt: (false && ) -> null");
             cJSON_Delete(result);
             result = cJSON_CreateNull();
         }
 
         cJSON_Delete(temp);
-    } else {
-        debug_rt("jsex_rt: ( || ) -> null");
+        break;
+
+    case cJSON_True:
+        debug_rt("jsex_rt: (true && ) -> true");
+        break;
+
+    default:
+        debug_rt("jsex_rt: ( && ) -> null");
         cJSON_Delete(result);
         result = cJSON_CreateNull();
+
     }
 
-    return result;}
+    return result;
+}
 
 cJSON * jsex_rt_match(const jsex_t * node, const cJSON * value) {
     cJSON * left;
