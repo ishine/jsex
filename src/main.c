@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
     char * line;
     char * delimiter;
     char * cresult;
-    size_t linecap;
+    size_t linecap = 0;
     jsex_t * jsex;
     cJSON * json;
     cJSON * jresult;

@@ -10,6 +10,7 @@ INC = include
 CC = gcc
 RM = rm -f
 CFLAGS = -pipe -Wall -I$(INC)
+LIBS = -lm
 
 TARGET = jsex
 OBJECTS = main.o jsex.o cJSON.o
@@ -47,4 +48,4 @@ clean:
 	$(RM) $(TARGET) $(OBJECTS)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
