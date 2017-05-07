@@ -29,8 +29,12 @@ int main(int argc, char **argv) {
                 *delimiter = '\0';
             }
 
+            if (strlen(line) == 0) {
+                continue;
+            }
+
             if (jsex = jsex_parse(line), jsex) {
-                printf("Result: %s\n", jsex_exec(jsex, json) ? "True" : "False");
+                printf("Result: %s\n\n", jsex_exec(jsex, json) ? "True" : "False");
                 jsex_free(jsex);
             } else {
                 printf("JSex parser error.\n\n");
