@@ -196,6 +196,7 @@ static void jsex_rt_value(const jsex_t * node, const cJSON * value, cJSON * resu
 
 static int jsex_cast_bool(const cJSON * value);
 static int jsex_cast_int(const cJSON * value);
+static void jsex_cast_string(const cJSON * value, char ** result);
 
 /* Public functions ***********************************************************/
 
@@ -1283,50 +1284,10 @@ void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result) {
 
 void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result) {
     cJSON result_p = CJSON_INITIALIZER;
-    char *string = "";
-    char buffer[64];
 
     node->args[0]->function(node->args[0], value, &result_p);
-
-    switch (result_p.type) {
-    case cJSON_Invalid:
-        break;
-
-    case cJSON_False:
-        string = "false";
-        break;
-
-    case cJSON_True:
-        string = "true";
-        break;
-
-    case cJSON_NULL:
-        string = "null";
-        break;
-
-    case cJSON_Number:
-        snprintf(buffer, 64, "%f", value->valuedouble);
-        string = buffer;
-        break;
-
-    case cJSON_String:
-        string = result_p.valuestring;
-        break;
-
-    case cJSON_Array:
-    case cJSON_Object:
-        break;
-
-    case cJSON_Raw:
-        string = result_p.valuestring;
-        break;
-
-    default:
-        debug( "At jsex_rt_string(): unknown value type (%d)", result_p.type);
-    }
-
     result->type = cJSON_String;
-    result->valuestring = strdup(string);
+    jsex_cast_string(&result_p, &result->valuestring);
     debug_rt("jsex_rt: (str) -> '%s'", result->valuestring);
 }
 
@@ -1464,6 +1425,8 @@ void jsex_rt_value(const jsex_t * node, __attribute__((unused)) const cJSON * va
 /* Helper runtime functions ***************************************************/
 
 int jsex_cast_bool(const cJSON * value) {
+    cJSON * child;
+
     switch (value->type) {
     case cJSON_Invalid:
     case cJSON_False:
@@ -1478,7 +1441,7 @@ int jsex_cast_bool(const cJSON * value) {
         return *value->valuestring != '\0';
     case cJSON_Array:
     case cJSON_Object:
-        return value->child != NULL;
+        return ((child = value->child) && !child->next) ? jsex_cast_bool(child) : 0;
     case cJSON_Raw:
         return value->valuestring != '\0';
     default:
@@ -1521,4 +1484,60 @@ int jsex_cast_int(const cJSON * value) {
         debug("At jsex_cast_int(): unknown value type (%d)", value->type);
         return 0;
     }
+}
+
+void jsex_cast_string(const cJSON * value, char ** result) {
+    cJSON * child;
+    char *string = "";
+    char buffer[64];
+
+    switch (value->type) {
+    case cJSON_Invalid:
+        break;
+
+    case cJSON_False:
+        string = "false";
+        break;
+
+    case cJSON_True:
+        string = "true";
+        break;
+
+    case cJSON_NULL:
+        string = "null";
+        break;
+
+    case cJSON_Number:
+        if (value->valueint == value->valuedouble) {
+            snprintf(buffer, 64, "%d", value->valueint);
+
+        } else {
+            snprintf(buffer, 64, "%f", value->valuedouble);
+
+        }
+
+        string = buffer;
+        break;
+
+    case cJSON_String:
+        string = value->valuestring;
+        break;
+
+    case cJSON_Array:
+    case cJSON_Object:
+        if ((child = value->child) && !child->next, child) {
+            jsex_cast_string(child, result);
+            return;
+        }
+        break;
+
+    case cJSON_Raw:
+        string = value->valuestring;
+        break;
+
+    default:
+        debug( "At jsex_cast_string(): unknown value type (%d)", value->type);
+    }
+
+    *result = strdup(string);
 }
