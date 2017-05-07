@@ -1481,8 +1481,25 @@ cJSON * jsex_rt_int(const jsex_t * node, const cJSON * value) {
 
 cJSON * jsex_rt_size(const jsex_t * node, const cJSON * value) {
     cJSON * temp = node->args[0]->function(node->args[0], value);
-    cJSON * result = cJSON_CreateNumber(cJSON_GetArraySize(temp));
-    debug_rt("jsex_rt: (size) -> %d", result->valueint);
+    cJSON * result;
+
+    switch (temp->type) {
+    case cJSON_String:
+        result = cJSON_CreateNumber(strlen(temp->valuestring));
+        debug_rt("jsex_rt: (size) -> %d", result->valueint);
+        break;
+
+    case cJSON_Array:
+    case cJSON_Object:
+        result = cJSON_CreateNumber(cJSON_GetArraySize(temp));
+        debug_rt("jsex_rt: (size) -> %d", result->valueint);
+        break;
+
+    default:
+        result = cJSON_CreateNull();
+        debug_rt("jsex_rt: (size) -> null");
+    }
+
     cJSON_Delete(temp);
     return result;
 }
