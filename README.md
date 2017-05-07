@@ -28,7 +28,7 @@ This project will use POSIX Regular Expressions Library and [cJSON Library](http
 - **`<term>`**` ::= <factor> ( '*' | '/' | '%' ) <term> ]`
 - **`<factor>`**` ::= '(' <query> ')' | '-' <factor> | <function> | <variable> | <float> | <integer> | <string> | 'null'`
 - **`<function>`**` ::= <id> '(' <query> ')'`
-- **`<variable>`**` ::= <id> [ '[' <expression> ']' ] [ '.' <variable> ]`
+- **`<variable>`**` ::= <id> ( '[' <expression> ']' )* [ '.' <variable> ]`
 - **`<loop>`**` ::= ( 'all' | 'any' ) <id> 'in' <variable> ':' '(' <query> ')'`
 
 ## Query examples

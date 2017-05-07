@@ -169,6 +169,7 @@ static void jsex_rt_int(const jsex_t * node, const cJSON * value, cJSON * result
 static void jsex_rt_size(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result);
+static void jsex_rt_index(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result);
 static void jsex_rt_value(const jsex_t * node, const cJSON * value, cJSON * result);
@@ -747,7 +748,7 @@ error:
     return NULL;
 }
 
-// <variable> ::= <id> [ '[' <expression> ']' ] [ '.' <variable> ]
+// <variable> ::= <id> ( '[' <expression> ']' )* [ '.' <variable> ]
 jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
     jsex_t * node = NULL;
     jsex_t * index;
@@ -765,7 +766,7 @@ jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
     node->function = jsex_rt_variable;
     ++(*tokens);
 
-    if ((*tokens)->type == LEX_LBRACKET) {
+    while ((*tokens)->type == LEX_LBRACKET) {
         ++(*tokens);
 
         index = jsex_parse_expression(tokens);
@@ -774,7 +775,11 @@ jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        node->args[0] = index;
+        parent = calloc(1, sizeof(jsex_t));
+        parent->args[0] = node;
+        parent->args[1] = index;
+        parent->function = jsex_rt_index;
+        node = parent;
 
         if ((*tokens)->type != LEX_RBRACKET) {
             error("Expected %s, got '%s'", TOKENS[LEX_RBRACKET], (*tokens)->string);
@@ -793,7 +798,7 @@ jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        parent->args[1] = node;
+        parent->args[0] = node;
         node = parent;
     }
 
@@ -1302,14 +1307,13 @@ void jsex_rt_string(const jsex_t * node, const cJSON * value, cJSON * result) {
 }
 
 void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) {
-    cJSON index = CJSON_INITIALIZER;
     cJSON parent = CJSON_INITIALIZER;
     const cJSON * result_p;
 
     // Optional child node (left part of the member)
 
-    if (node->args[1]) {
-        node->args[1]->function(node->args[1], value, &parent);
+    if (node->args[0]) {
+        node->args[0]->function(node->args[0], value, &parent);
         result_p = &parent;
     } else {
         result_p = value;
@@ -1323,21 +1327,34 @@ void jsex_rt_variable(const jsex_t * node, const cJSON * value, cJSON * result) 
         return;
     }
 
+    debug("jsex_rt: (.%s) -> (node)", node->value->valuestring);
+    memcpy(result, result_p, sizeof(cJSON));
+}
+
+void jsex_rt_index(const jsex_t * node, const cJSON * value, cJSON * result) {
+    cJSON index = CJSON_INITIALIZER;
+    cJSON parent = CJSON_INITIALIZER;
+    const cJSON * result_p;
+
+    // Optional child node (left part of the member)
+
     if (node->args[0]) {
-        node->args[0]->function(node->args[0], value, &index);
-        result_p = index.type == cJSON_Number ? cJSON_GetArrayItem(value, node->value->valueint) : NULL;
-
-        if (!result_p) {
-            result->type = cJSON_NULL;
-            debug("jsex_rt: (.%s[%d]) -> null", node->value->valuestring, node->value->valueint);
-            return;
-        }
-
-        debug("jsex_rt: (.%s[%d]) -> (node)", node->value->valuestring, node->value->valueint);
+        node->args[0]->function(node->args[0], value, &parent);
+        result_p = &parent;
     } else {
-        debug("jsex_rt: (.%s) -> (node)", node->value->valuestring);
+        result_p = value;
     }
 
+    node->args[1]->function(node->args[1], value, &index);
+    result_p = index.type == cJSON_Number ? cJSON_GetArrayItem(result_p, index.valueint) : NULL;
+
+    if (!result_p) {
+        result->type = cJSON_NULL;
+        debug("jsex_rt: ([%d]) -> null", index.valueint);
+        return;
+    }
+
+    debug("jsex_rt: ([%d]) -> (node)", index.valueint);
     memcpy(result, result_p, sizeof(cJSON));
 }
 
