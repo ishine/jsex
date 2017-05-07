@@ -38,7 +38,7 @@
   #include <time.h>
   #define profile_start() clock_t clock_s = clock()
   #define profile_reset() clock_s = clock()
-  #define profile_print(name) printf("PROFILE: " name ": %.3f ms.\n", (double)(clock() - clock_s) * 1000 / CLOCKS_PER_SEC)
+  #define profile_print(name) printf("PROFILE: " name ": %.0f µs.\n", (double)(clock() - clock_s) * 1000000 / CLOCKS_PER_SEC)
 #else
   #define profile_start()
   #define profile_reset()
