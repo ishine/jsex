@@ -1381,8 +1381,9 @@ void jsex_rt_index(const jsex_t * node, const cJSON * value, cJSON * result) {
 void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result) {
     cJSON array = CJSON_INITIALIZER;
     cJSON result_p = CJSON_INITIALIZER;
+    cJSON child = CJSON_INITIALIZER;
+    cJSON root = { .child = &child };
     cJSON * element;
-    cJSON * root;
 
     node->args[0]->function(node->args[0], value, &array);
 
@@ -1395,12 +1396,13 @@ void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result) 
     }
 
     cJSON_ArrayForEach(element, &array) {
-        root = cJSON_CreateObject();
-        // TODO: Ain't sure...
-        cJSON_AddItemReferenceToObject(root, node->value->valuestring, element);
-
-        node->args[1]->function(node->args[1], root, &result_p);
-        cJSON_Delete(root);
+        child.child = element->child;
+        child.type = element->type;
+        child.valuestring = element->valuestring;
+        child.valueint = element->valueint;
+        child.valuedouble = element->valuedouble;
+        child.string = node->value->valuestring;
+        node->args[1]->function(node->args[1], &root, &result_p);
 
         if (!jsex_cast_bool(&result_p)) {
             result->type = cJSON_False;
@@ -1416,18 +1418,20 @@ void jsex_rt_loop_all(const jsex_t * node, const cJSON * value, cJSON * result) 
 void jsex_rt_loop_any(const jsex_t * node, const cJSON * value, cJSON * result) {
     cJSON array = CJSON_INITIALIZER;
     cJSON result_p = CJSON_INITIALIZER;
+    cJSON child = CJSON_INITIALIZER;
+    cJSON root = { .child = &child };
     cJSON * element;
-    cJSON * root;
 
     node->args[0]->function(node->args[0], value, &array);
 
     cJSON_ArrayForEach(element, &array) {
-        root = cJSON_CreateObject();
-        // TODO: Ain't sure...
-        cJSON_AddItemReferenceToObject(root, node->value->valuestring, element);
-
-        node->args[1]->function(node->args[1], root, &result_p);
-        cJSON_Delete(root);
+        child.child = element->child;
+        child.type = element->type;
+        child.valuestring = element->valuestring;
+        child.valueint = element->valueint;
+        child.valuedouble = element->valuedouble;
+        child.string = node->value->valuestring;
+        node->args[1]->function(node->args[1], &root, &result_p);
 
         if (jsex_cast_bool(&result_p)) {
             result->type = cJSON_True;
