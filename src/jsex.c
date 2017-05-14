@@ -160,6 +160,8 @@ static jsex_t * jsex_parse_term(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_factor(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_function(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_variable(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_member(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_root(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_loop(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_null(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_float(const jsex_token_t ** tokens);
@@ -190,6 +192,7 @@ static cJSON * jsex_rt_variable(const jsex_t * node, const cJSON * value);
 static cJSON * jsex_rt_index(const jsex_t * node, const cJSON * value);
 static cJSON * jsex_rt_loop_all(const jsex_t * node, const cJSON * value);
 static cJSON * jsex_rt_loop_any(const jsex_t * node, const cJSON * value);
+static cJSON * jsex_rt_root(const jsex_t * node, const cJSON * value);
 static cJSON * jsex_rt_value(const jsex_t * node, const cJSON * value);
 
 static cJSON * jsex_cast_bool(const cJSON * value);
@@ -660,29 +663,6 @@ jsex_t * jsex_parse_factor(const jsex_token_t ** tokens) {
         ++(*tokens);
         break;
 
-    case LEX_ID:
-        if ((*tokens)[1].type == LEX_LPAREN) {
-            node = jsex_parse_function(tokens);
-
-            if (!node) {
-                goto error;
-            }
-        } else if (strcmp((*tokens)->string, KEYWORD_NULL) == 0) {
-            node = jsex_parse_null(tokens);
-
-            if (!node) {
-                goto error;
-            }
-        } else {
-            node = jsex_parse_variable(tokens);
-
-            if (!node) {
-                goto error;
-            }
-        }
-
-        break;
-
     case LEX_FLOAT:
         node = jsex_parse_float(tokens);
 
@@ -701,8 +681,40 @@ jsex_t * jsex_parse_factor(const jsex_token_t ** tokens) {
 
         break;
 
+    case LEX_ID:
+        if ((*tokens)[1].type == LEX_LPAREN) {
+            node = jsex_parse_function(tokens);
+
+            if (!node) {
+                goto error;
+            }
+        } else if (strcmp((*tokens)->string, KEYWORD_NULL) == 0) {
+            node = jsex_parse_null(tokens);
+
+            if (!node) {
+                goto error;
+            }
+        } else {
+            node = jsex_parse_member(tokens);
+
+            if (!node) {
+                goto error;
+            }
+        }
+
+        break;
+
     case LEX_STRING:
         node = jsex_parse_string(tokens);
+
+        if (!node) {
+            goto error;
+        }
+
+        break;
+
+    case LEX_DOT:
+        node = jsex_parse_root(tokens);
 
         if (!node) {
             goto error;
@@ -791,13 +803,29 @@ error:
     return NULL;
 }
 
-// <variable> ::= <id> ( '[' <expression> ']' )* [ '.' <variable> ]
+
+// <variable> ::= <member> | <root>
 jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
+    switch ((*tokens)->type) {
+    case LEX_ID:
+        return jsex_parse_member(tokens);
+
+    case LEX_DOT:
+        return jsex_parse_root(tokens);
+
+    default:
+        error("Expected variable, got '%s'", (*tokens)->string);
+        return NULL;
+    }
+}
+
+// <member> ::= <id> ( '[' <expression> ']' )* [ '.' <member> ]
+jsex_t * jsex_parse_member(const jsex_token_t ** tokens) {
     jsex_t * node = NULL;
     jsex_t * index;
     jsex_t * parent;
 
-    debug_parser("jsex_parse_variable(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
+    debug_parser("jsex_parse_member(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
 
     if ((*tokens)->type != LEX_ID) {
         error("Expected %s, got '%s'", TOKENS[LEX_ID], (*tokens)->string);
@@ -835,7 +863,7 @@ jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
     if ((*tokens)->type == LEX_DOT) {
         ++(*tokens);
 
-        parent = jsex_parse_variable(tokens);
+        parent = jsex_parse_member(tokens);
 
         if (!parent) {
             goto error;
@@ -843,6 +871,101 @@ jsex_t * jsex_parse_variable(const jsex_token_t ** tokens) {
 
         parent->args[0] = node;
         node = parent;
+    }
+
+    return node;
+
+error:
+    jsex_free(node);
+    return NULL;
+}
+
+// <root> ::= '.' [ ( '[' <expression> ']' )+ [ '.' <member> ] | <member> ]
+jsex_t * jsex_parse_root(const jsex_token_t ** tokens) {
+    jsex_t * node = NULL;
+    jsex_t * index;
+    jsex_t * parent;
+
+    debug_parser("jsex_parse_root(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
+
+    if ((*tokens)->type != LEX_DOT) {
+        error("Expected %s, got '%s'", TOKENS[LEX_DOT], (*tokens)->string);
+        goto error;
+    }
+
+    ++(*tokens);
+
+    switch ((*tokens)->type) {
+    case LEX_LBRACKET:
+        ++(*tokens);
+
+        index = jsex_parse_expression(tokens);
+
+        if (!index) {
+            goto error;
+        }
+
+        node = calloc(1, sizeof(jsex_t));
+        node->args[1] = index;
+        node->function = jsex_rt_index;
+
+        if ((*tokens)->type != LEX_RBRACKET) {
+            error("Expected %s, got '%s'", TOKENS[LEX_RBRACKET], (*tokens)->string);
+            goto error;
+        }
+
+        ++(*tokens);
+
+        while ((*tokens)->type == LEX_LBRACKET) {
+            ++(*tokens);
+
+            index = jsex_parse_expression(tokens);
+
+            if (!index) {
+                goto error;
+            }
+
+            parent = calloc(1, sizeof(jsex_t));
+            parent->args[0] = node;
+            parent->args[1] = index;
+            parent->function = jsex_rt_index;
+            node = parent;
+
+            if ((*tokens)->type != LEX_RBRACKET) {
+                error("Expected %s, got '%s'", TOKENS[LEX_RBRACKET], (*tokens)->string);
+                goto error;
+            }
+
+            ++(*tokens);
+        }
+
+        if ((*tokens)->type == LEX_DOT) {
+            ++(*tokens);
+
+            parent = jsex_parse_member(tokens);
+
+            if (!parent) {
+                goto error;
+            }
+
+            parent->args[0] = node;
+            node = parent;
+        }
+
+        break;
+
+    case LEX_ID:
+        node = jsex_parse_member(tokens);
+
+        if (!node) {
+            goto error;
+        }
+
+        break;
+
+    default:
+        node = calloc(1, sizeof(jsex_t));
+        node->function = jsex_rt_root;
     }
 
     return node;
@@ -1885,6 +2008,10 @@ cJSON * jsex_rt_loop_any(const jsex_t * node, const cJSON * value) {
     debug_rt("jsex_rt: (any '%s' in [,]) -> false", node->value->valuestring);
     cJSON_Delete(array);
     return cJSON_CreateFalse();
+}
+
+cJSON * jsex_rt_root(__attribute__((unused)) const jsex_t * node, const cJSON * value) {
+    return cJSON_Duplicate(value, 1);
 }
 
 cJSON * jsex_rt_value(const jsex_t * node, __attribute__((unused)) const cJSON * value) {
