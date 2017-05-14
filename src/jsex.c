@@ -140,6 +140,8 @@ static const char * const KEYWORD_IN = "in";
 static const char * const KEYWORD_ALL = "all";
 static const char * const KEYWORD_ANY = "any";
 static const char * const KEYWORD_NULL = "null";
+static const char * const KEYWORD_TRUE = "true";
+static const char * const KEYWORD_FALSE = "false";
 
 static const char * const FUNCTION_INT = "int";
 static const char * const FUNCTION_STRING = "str";
@@ -164,6 +166,8 @@ static jsex_t * jsex_parse_member(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_root(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_loop(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_null(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_true(const jsex_token_t ** tokens);
+static jsex_t * jsex_parse_false(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_float(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_integer(const jsex_token_t ** tokens);
 static jsex_t * jsex_parse_string(const jsex_token_t ** tokens);
@@ -694,6 +698,18 @@ jsex_t * jsex_parse_factor(const jsex_token_t ** tokens) {
             if (!node) {
                 goto error;
             }
+        } else if (strcmp((*tokens)->string, KEYWORD_TRUE) == 0) {
+            node = jsex_parse_true(tokens);
+
+            if (!node) {
+                goto error;
+            }
+        } else if (strcmp((*tokens)->string, KEYWORD_FALSE) == 0) {
+            node = jsex_parse_false(tokens);
+
+            if (!node) {
+                goto error;
+            }
         } else {
             node = jsex_parse_member(tokens);
 
@@ -1063,6 +1079,39 @@ jsex_t * jsex_parse_null(const jsex_token_t ** tokens) {
 
     node = calloc(1, sizeof(jsex_t));
     node->value = cJSON_CreateNull();
+    node->function = jsex_rt_value;
+    ++(*tokens);
+    return node;;
+}
+
+jsex_t * jsex_parse_true(const jsex_token_t ** tokens) {
+    jsex_t * node;
+
+    debug_parser("jsex_parse_true(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
+
+    if (!((*tokens)->type == LEX_ID && strcmp((*tokens)->string, KEYWORD_TRUE) == 0)) {
+        error("Expected '%s', got '%s'", KEYWORD_TRUE, (*tokens)->string);
+        return NULL;
+    }
+
+    node = calloc(1, sizeof(jsex_t));
+    node->value = cJSON_CreateTrue();
+    node->function = jsex_rt_value;
+    ++(*tokens);
+    return node;;
+}
+jsex_t * jsex_parse_false(const jsex_token_t ** tokens) {
+    jsex_t * node;
+
+    debug_parser("jsex_parse_false(): [%s] %s", TOKENS[(*tokens)->type], (*tokens)->string);
+
+    if (!((*tokens)->type == LEX_ID && strcmp((*tokens)->string, KEYWORD_FALSE) == 0)) {
+        error("Expected '%s', got '%s'", KEYWORD_FALSE, (*tokens)->string);
+        return NULL;
+    }
+
+    node = calloc(1, sizeof(jsex_t));
+    node->value = cJSON_CreateFalse();
     node->function = jsex_rt_value;
     ++(*tokens);
     return node;;
