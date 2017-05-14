@@ -1152,13 +1152,105 @@ cJSON * jsex_rt_equal(const jsex_t * node, const cJSON * value) {
     cJSON * right = node->args[1]->function(node->args[1], value);
     cJSON * result;
 
-    if (cJSON_IsNumber(left) && cJSON_IsNumber(right)) {
-        result = cJSON_CreateBool(left->valuedouble == right->valuedouble);
-        debug_rt("jsex_rt: (%f == %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
-    } else if (cJSON_IsString(left) && cJSON_IsString(right)) {
-        result = cJSON_CreateBool(strcmp(left->valuestring, right->valuestring) == 0);
-        debug_rt("jsex_rt: (%f == %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
-    } else {
+    switch (left->type) {
+    case cJSON_False:
+        switch (right->type) {
+        case cJSON_False:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (false == false) -> true");
+            break;
+
+        case cJSON_True:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (false == true) -> false");
+            break;
+
+        case cJSON_NULL:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (false == null) -> false");
+            break;
+
+        default:
+            debug_rt("jsex_rt: (false == ) -> null");
+            result = cJSON_CreateNull();
+        }
+
+        break;
+
+    case cJSON_True:
+        switch (right->type) {
+        case cJSON_False:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (true == false) -> false");
+            break;
+
+        case cJSON_True:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (true == true) -> true");
+            break;
+
+        case cJSON_NULL:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (true == null) -> false");
+            break;
+
+        default:
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (true == ) -> null");
+        }
+
+        break;
+
+    case cJSON_NULL:
+        if (cJSON_IsNull(right)) {
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (null == null) -> true");
+        } else {
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (null == ) -> false");
+        }
+
+        break;
+
+    case cJSON_Number:
+        switch (right->type) {
+        case cJSON_NULL:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (%f == null) -> false", left->valuedouble);
+            break;
+
+        case cJSON_Number:
+            result = cJSON_CreateBool(left->valuedouble == right->valuedouble);
+            debug_rt("jsex_rt: (%f == %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+            break;
+
+        default:
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%f == ) -> null", left->valuedouble);
+        }
+
+        break;
+
+    case cJSON_String:
+        switch (right->type) {
+        case cJSON_NULL:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (%s == null) -> false", left->valuestring);
+            break;
+
+        case cJSON_String:
+            result = cJSON_CreateBool(strcmp(left->valuestring, right->valuestring) == 0);
+            debug_rt("jsex_rt: (%s == %s) -> %s", left->valuestring, right->valuestring, cJSON_IsTrue(result) ? "true" : "false");
+            break;
+
+        default:
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%s == ) -> null", left->valuestring);
+        }
+
+        break;
+
+    default:
         result = cJSON_CreateNull();
         debug_rt("jsex_rt: ( == ) -> null");
     }
@@ -1173,13 +1265,105 @@ cJSON * jsex_rt_not_equal(const jsex_t * node, const cJSON * value) {
     cJSON * right = node->args[1]->function(node->args[1], value);
     cJSON * result;
 
-    if (cJSON_IsNumber(left) && cJSON_IsNumber(right)) {
-        result = cJSON_CreateBool(left->valuedouble != right->valuedouble);
-        debug_rt("jsex_rt: (%f != %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
-    } else if (cJSON_IsString(left) && cJSON_IsString(right)) {
-        result = cJSON_CreateBool(strcmp(left->valuestring, right->valuestring) != 0);
-        debug_rt("jsex_rt: (%f != %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
-    } else {
+    switch (left->type) {
+    case cJSON_False:
+        switch (right->type) {
+        case cJSON_False:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (false != false) -> false");
+            break;
+
+        case cJSON_True:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (false != true) -> true");
+            break;
+
+        case cJSON_NULL:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (false != null) -> true");
+            break;
+
+        default:
+            debug_rt("jsex_rt: (false != ) -> null");
+            result = cJSON_CreateNull();
+        }
+
+        break;
+
+    case cJSON_True:
+        switch (right->type) {
+        case cJSON_False:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (true != false) -> true");
+            break;
+
+        case cJSON_True:
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (true != true) -> false");
+            break;
+
+        case cJSON_NULL:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (true != null) -> true");
+            break;
+
+        default:
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (true != ) -> null");
+        }
+
+        break;
+
+    case cJSON_NULL:
+        if (cJSON_IsNull(right)) {
+            result = cJSON_CreateFalse();
+            debug_rt("jsex_rt: (null != null) -> false");
+        } else {
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (null != ) -> true");
+        }
+
+        break;
+
+    case cJSON_Number:
+        switch (right->type) {
+        case cJSON_NULL:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (%f != null) -> true", left->valuedouble);
+            break;
+
+        case cJSON_Number:
+            result = cJSON_CreateBool(left->valuedouble != right->valuedouble);
+            debug_rt("jsex_rt: (%f != %f) -> %s", left->valuedouble, right->valuedouble, cJSON_IsTrue(result) ? "true" : "false");
+            break;
+
+        default:
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%f != ) -> null", left->valuedouble);
+        }
+
+        break;
+
+    case cJSON_String:
+        switch (right->type) {
+        case cJSON_NULL:
+            result = cJSON_CreateTrue();
+            debug_rt("jsex_rt: (%s != null) -> true", left->valuestring);
+            break;
+
+        case cJSON_String:
+            result = cJSON_CreateBool(strcmp(left->valuestring, right->valuestring) != 0);
+            debug_rt("jsex_rt: (%s != %s) -> %s", left->valuestring, right->valuestring, cJSON_IsTrue(result) ? "true" : "false");
+            break;
+
+        default:
+            result = cJSON_CreateNull();
+            debug_rt("jsex_rt: (%s != ) -> null", left->valuestring);
+        }
+
+        break;
+
+    default:
         result = cJSON_CreateNull();
         debug_rt("jsex_rt: ( != ) -> null");
     }
