@@ -45,6 +45,10 @@
   #define profile_print(name)
 #endif
 
+#define jsex_malloc(nmemb, type) (type *)malloc(nmemb * sizeof(type))
+#define jsex_calloc(nmemb, type) (type *)calloc(nmemb, sizeof(type))
+#define jsex_realloc(ptr, nmemb, type) (type *)realloc(ptr, nmemb * sizeof(type))
+
 enum {
     LEX_NONE,
     LEX_LPAREN,
@@ -310,7 +314,7 @@ jsex_token_t * jsex_lexer(const char *input) {
 
     while (token = jsex_lexer_next(input, &offset), token >= 0 && offset > 0) {
         if (token > 0) {
-            tokens = realloc(tokens, sizeof(jsex_token_t) * (i + 1));
+            tokens = jsex_realloc(tokens, i + 1, jsex_token_t);
             tokens[i].type = token;
             tokens[i].string = strndup(input, offset);
             i++;
@@ -319,7 +323,7 @@ jsex_token_t * jsex_lexer(const char *input) {
         input += offset;
     }
 
-    tokens = realloc(tokens, sizeof(jsex_token_t) * (i + 1));
+    tokens = jsex_realloc(tokens, i + 1, jsex_token_t);
     tokens[i].type = LEX_NONE;
     tokens[i].string = NULL;
 
@@ -339,7 +343,7 @@ void jsex_regex_compile() {
     char errbuf[128];
 
     profile_start();
-    regexes = malloc(sizeof(regex_t) * N_PATTERNS);
+    regexes = jsex_malloc(N_PATTERNS, regex_t);
 
     if (!regexes) {
         error("At malloc()");
@@ -448,7 +452,7 @@ jsex_t * jsex_parse_query(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -483,7 +487,7 @@ jsex_t * jsex_parse_sentence(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        parent = calloc(1, sizeof(jsex_t));
+        parent = jsex_calloc(1, jsex_t);
         parent->function = jsex_rt_negate;
         parent->args[0] = node;
         node = parent;
@@ -535,7 +539,7 @@ jsex_t * jsex_parse_sentence(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -582,7 +586,7 @@ jsex_t * jsex_parse_expression(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -633,7 +637,7 @@ jsex_t * jsex_parse_term(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -749,7 +753,7 @@ jsex_t * jsex_parse_factor(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        parent = calloc(1, sizeof(jsex_t));
+        parent = jsex_calloc(1, jsex_t);
         parent->function = jsex_rt_opposite;
         parent->args[0] = node;
         node = parent;
@@ -779,7 +783,7 @@ jsex_t * jsex_parse_function(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
 
     if (strcmp((*tokens)->string, FUNCTION_INT) == 0) {
         node->function = jsex_rt_int;
@@ -850,7 +854,7 @@ jsex_t * jsex_parse_member(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateString((*tokens)->string);
     node->function = jsex_rt_variable;
     ++(*tokens);
@@ -864,7 +868,7 @@ jsex_t * jsex_parse_member(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        parent = calloc(1, sizeof(jsex_t));
+        parent = jsex_calloc(1, jsex_t);
         parent->args[0] = node;
         parent->args[1] = index;
         parent->function = jsex_rt_index;
@@ -923,7 +927,7 @@ jsex_t * jsex_parse_root(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        node = calloc(1, sizeof(jsex_t));
+        node = jsex_calloc(1, jsex_t);
         node->args[1] = index;
         node->function = jsex_rt_index;
 
@@ -943,7 +947,7 @@ jsex_t * jsex_parse_root(const jsex_token_t ** tokens) {
                 goto error;
             }
 
-            parent = calloc(1, sizeof(jsex_t));
+            parent = jsex_calloc(1, jsex_t);
             parent->args[0] = node;
             parent->args[1] = index;
             parent->function = jsex_rt_index;
@@ -982,7 +986,7 @@ jsex_t * jsex_parse_root(const jsex_token_t ** tokens) {
         break;
 
     default:
-        node = calloc(1, sizeof(jsex_t));
+        node = jsex_calloc(1, jsex_t);
         node->function = jsex_rt_root;
     }
 
@@ -1004,7 +1008,7 @@ jsex_t * jsex_parse_loop(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
 
     if (strcmp((*tokens)->string, KEYWORD_ALL) == 0) {
         node->function = jsex_rt_loop_all;
@@ -1079,7 +1083,7 @@ jsex_t * jsex_parse_null(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateNull();
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1096,7 +1100,7 @@ jsex_t * jsex_parse_true(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateTrue();
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1112,7 +1116,7 @@ jsex_t * jsex_parse_false(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateFalse();
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1138,7 +1142,7 @@ jsex_t * jsex_parse_float(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateNumber(number);
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1164,7 +1168,7 @@ jsex_t * jsex_parse_integer(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateNumber(number);
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1194,9 +1198,9 @@ jsex_t * jsex_parse_string(const jsex_token_t ** tokens) {
         strcpy(escape, escape + 1);
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateString(string);
-    node->regex = malloc(sizeof(regex_t));
+    node->regex = jsex_malloc(1, regex_t);
     node->function = jsex_rt_value;
 
     if (regcomp(node->regex, string, REG_EXTENDED)) {
@@ -1680,7 +1684,7 @@ cJSON * jsex_rt_add(const jsex_t * node, const cJSON * value) {
 
         if (cJSON_IsString(aux)) {
             offset = strlen(result->valuestring);
-            string = malloc(offset + strlen(aux->valuestring) + 1);
+            string = jsex_malloc(offset + strlen(aux->valuestring) + 1, char);
             strcpy(string, result->valuestring);
             strcpy(string + offset, aux->valuestring);
             debug_rt("jsex_rt: (%s + %s) -> %s", result->valuestring, aux->valuestring, string);
