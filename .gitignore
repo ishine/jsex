@@ -33,3 +33,7 @@ jsex
 # Debug files
 *.dSYM/
 *.su
+
+*.gcda
+*.gcno
+*.c.gcov
