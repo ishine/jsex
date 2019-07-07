@@ -2161,7 +2161,7 @@ cJSON * jsex_cast_int(const cJSON * value) {
 
 cJSON * jsex_cast_string(const cJSON * value) {
     cJSON * child;
-    char *string = "";
+    const char *string = "";
     char buffer[64];
 
     switch (value->type) {
