@@ -45,33 +45,35 @@
   #define profile_print(name)
 #endif
 
-#define LEX_NONE        0
-#define LEX_LPAREN      1
-#define LEX_RPAREN      2
-#define LEX_LBRACKET    3
-#define LEX_RBRACKET    4
-#define LEX_COLON       5
-#define LEX_FLOAT       6
-#define LEX_INTEGER     7
-#define LEX_ID          8
-#define LEX_STRING      9
-#define LEX_DOT         10
-#define LEX_AND         11
-#define LEX_OR          12
-#define LEX_PLUS        13
-#define LEX_MINUS       14
-#define LEX_TIMES       15
-#define LEX_SLASH       16
-#define LEX_MOD         17
-#define LEX_MATCH       18
-#define LEX_EQUAL       19
-#define LEX_NEQUAL      20
-#define LEX_GEQ         21
-#define LEX_LEQ         22
-#define LEX_GREATER     23
-#define LEX_LESS        24
-#define LEX_BANG        25
-#define N_PATTERNS      26
+enum {
+    LEX_NONE,
+    LEX_LPAREN,
+    LEX_RPAREN,
+    LEX_LBRACKET,
+    LEX_RBRACKET,
+    LEX_COLON,
+    LEX_FLOAT,
+    LEX_INTEGER,
+    LEX_ID,
+    LEX_STRING,
+    LEX_DOT,
+    LEX_AND,
+    LEX_OR,
+    LEX_PLUS,
+    LEX_MINUS,
+    LEX_TIMES,
+    LEX_SLASH,
+    LEX_MOD,
+    LEX_MATCH,
+    LEX_EQUAL,
+    LEX_NEQUAL,
+    LEX_GEQ,
+    LEX_LEQ,
+    LEX_GREATER,
+    LEX_LESS,
+    LEX_BANG,
+    N_PATTERNS
+};
 
 typedef struct jsex_token_t {
     int type;
@@ -79,61 +81,61 @@ typedef struct jsex_token_t {
 } jsex_token_t;
 
 static const char * PATTERNS[] = {
-    "^ +",
-    "^\\(",
-    "^\\)",
-    "^\\[",
-    "^\\]",
-    "^:",
-    "^[0-9]*\\.[0-9]+",
-    "^[0-9]+",
-    "^[A-Za-z0-9_]+",
-    "^\"(\\\\\"|[^\"])*\"|^'(\\\\'|[^'])*'",
-    "^\\.",
-    "^&&",
-    "^\\|\\|",
-    "^\\+",
-    "^-",
-    "^\\*",
-    "^/",
-    "^%",
-    "^=~",
-    "^==",
-    "^!=",
-    "^>=",
-    "^<=",
-    "^>",
-    "^<",
-    "^!"
+    [LEX_NONE] = "^ +",
+    [LEX_LPAREN] = "^\\(",
+    [LEX_RPAREN] = "^\\)",
+    [LEX_LBRACKET] = "^\\[",
+    [LEX_RBRACKET] = "^\\]",
+    [LEX_COLON] = "^:",
+    [LEX_FLOAT] = "^[0-9]*\\.[0-9]+",
+    [LEX_INTEGER] = "^[0-9]+",
+    [LEX_ID] = "^[A-Za-z0-9_]+",
+    [LEX_STRING] = "^\"(\\\\\"|[^\"])*\"|^'(\\\\'|[^'])*'",
+    [LEX_DOT] = "^\\.",
+    [LEX_AND] = "^&&",
+    [LEX_OR] = "^\\|\\|",
+    [LEX_PLUS] = "^\\+",
+    [LEX_MINUS] = "^-",
+    [LEX_TIMES] = "^\\*",
+    [LEX_SLASH] = "^/",
+    [LEX_MOD] = "^%",
+    [LEX_MATCH] = "^=~",
+    [LEX_EQUAL] = "^==",
+    [LEX_NEQUAL] = "^!=",
+    [LEX_GEQ] = "^>=",
+    [LEX_LEQ] = "^<=",
+    [LEX_GREATER] = "^>",
+    [LEX_LESS] = "^<",
+    [LEX_BANG] = "^!"
 };
 
 static const char * TOKENS[] = {
-    "end of query",
-    "'('",
-    "')'",
-    "'['",
-    "']'",
-    "':'",
-    "decimal",
-    "integer",
-    "identifier",
-    "string",
-    "'.'",
-    "'&&'",
-    "'||'",
-    "'+'",
-    "-",
-    "'*'",
-    "/",
-    "'%'",
-    "'=~'",
-    "'=='",
-    "'!='",
-    "'>='",
-    "'<='",
-    "'>'",
-    "'<'",
-    "'!'"
+    [LEX_NONE] = "end of query",
+    [LEX_LPAREN] = "'('",
+    [LEX_RPAREN] = "')'",
+    [LEX_LBRACKET] = "'['",
+    [LEX_RBRACKET] = "']'",
+    [LEX_COLON] = "':'",
+    [LEX_FLOAT] = "decimal",
+    [LEX_INTEGER] = "integer",
+    [LEX_ID] = "identifier",
+    [LEX_STRING] = "string",
+    [LEX_DOT] = "'.'",
+    [LEX_AND] = "'&&'",
+    [LEX_OR] = "'||'",
+    [LEX_PLUS] = "'+'",
+    [LEX_MINUS] = "-",
+    [LEX_TIMES] = "'*'",
+    [LEX_SLASH] = "/",
+    [LEX_MOD] = "'%'",
+    [LEX_MATCH] = "'=~'",
+    [LEX_EQUAL] = "'=='",
+    [LEX_NEQUAL] = "'!='",
+    [LEX_GEQ] = "'>='",
+    [LEX_LEQ] = "'<='",
+    [LEX_GREATER] = "'>'",
+    [LEX_LESS] = "'<'",
+    [LEX_BANG] = "'!'"
 };
 
 static const char * const KEYWORD_IN = "in";
