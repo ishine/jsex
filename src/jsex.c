@@ -2102,7 +2102,7 @@ cJSON * jsex_cast_bool(const cJSON * value) {
         break;
 
     case cJSON_Raw:
-        number = value->valuestring != '\0';
+        number = value->valuestring[0] != '\0';
     default:
         debug("At jsex_cast_bool(): unknown value type (%d)", value->type);
     }
