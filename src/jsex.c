@@ -45,33 +45,39 @@
   #define profile_print(name)
 #endif
 
-#define LEX_NONE        0
-#define LEX_LPAREN      1
-#define LEX_RPAREN      2
-#define LEX_LBRACKET    3
-#define LEX_RBRACKET    4
-#define LEX_COLON       5
-#define LEX_FLOAT       6
-#define LEX_INTEGER     7
-#define LEX_ID          8
-#define LEX_STRING      9
-#define LEX_DOT         10
-#define LEX_AND         11
-#define LEX_OR          12
-#define LEX_PLUS        13
-#define LEX_MINUS       14
-#define LEX_TIMES       15
-#define LEX_SLASH       16
-#define LEX_MOD         17
-#define LEX_MATCH       18
-#define LEX_EQUAL       19
-#define LEX_NEQUAL      20
-#define LEX_GEQ         21
-#define LEX_LEQ         22
-#define LEX_GREATER     23
-#define LEX_LESS        24
-#define LEX_BANG        25
-#define N_PATTERNS      26
+#define jsex_malloc(nmemb, type) (type *)malloc(nmemb * sizeof(type))
+#define jsex_calloc(nmemb, type) (type *)calloc(nmemb, sizeof(type))
+#define jsex_realloc(ptr, nmemb, type) (type *)realloc(ptr, nmemb * sizeof(type))
+
+enum {
+    LEX_NONE,
+    LEX_LPAREN,
+    LEX_RPAREN,
+    LEX_LBRACKET,
+    LEX_RBRACKET,
+    LEX_COLON,
+    LEX_FLOAT,
+    LEX_INTEGER,
+    LEX_ID,
+    LEX_STRING,
+    LEX_DOT,
+    LEX_AND,
+    LEX_OR,
+    LEX_PLUS,
+    LEX_MINUS,
+    LEX_TIMES,
+    LEX_SLASH,
+    LEX_MOD,
+    LEX_MATCH,
+    LEX_EQUAL,
+    LEX_NEQUAL,
+    LEX_GEQ,
+    LEX_LEQ,
+    LEX_GREATER,
+    LEX_LESS,
+    LEX_BANG,
+    N_PATTERNS
+};
 
 typedef struct jsex_token_t {
     int type;
@@ -79,61 +85,61 @@ typedef struct jsex_token_t {
 } jsex_token_t;
 
 static const char * PATTERNS[] = {
-    "^ +",
-    "^\\(",
-    "^\\)",
-    "^\\[",
-    "^\\]",
-    "^:",
-    "^[0-9]*\\.[0-9]+",
-    "^[0-9]+",
-    "^[A-Za-z0-9_]+",
-    "^\"(\\\\\"|[^\"])*\"|^'(\\\\'|[^'])*'",
-    "^\\.",
-    "^&&",
-    "^\\|\\|",
-    "^\\+",
-    "^-",
-    "^\\*",
-    "^/",
-    "^%",
-    "^=~",
-    "^==",
-    "^!=",
-    "^>=",
-    "^<=",
-    "^>",
-    "^<",
-    "^!"
+    [LEX_NONE] = "^ +",
+    [LEX_LPAREN] = "^\\(",
+    [LEX_RPAREN] = "^\\)",
+    [LEX_LBRACKET] = "^\\[",
+    [LEX_RBRACKET] = "^\\]",
+    [LEX_COLON] = "^:",
+    [LEX_FLOAT] = "^[0-9]*\\.[0-9]+",
+    [LEX_INTEGER] = "^[0-9]+",
+    [LEX_ID] = "^[A-Za-z0-9_]+",
+    [LEX_STRING] = "^\"(\\\\\"|[^\"])*\"|^'(\\\\'|[^'])*'",
+    [LEX_DOT] = "^\\.",
+    [LEX_AND] = "^&&",
+    [LEX_OR] = "^\\|\\|",
+    [LEX_PLUS] = "^\\+",
+    [LEX_MINUS] = "^-",
+    [LEX_TIMES] = "^\\*",
+    [LEX_SLASH] = "^/",
+    [LEX_MOD] = "^%",
+    [LEX_MATCH] = "^=~",
+    [LEX_EQUAL] = "^==",
+    [LEX_NEQUAL] = "^!=",
+    [LEX_GEQ] = "^>=",
+    [LEX_LEQ] = "^<=",
+    [LEX_GREATER] = "^>",
+    [LEX_LESS] = "^<",
+    [LEX_BANG] = "^!"
 };
 
 static const char * TOKENS[] = {
-    "end of query",
-    "'('",
-    "')'",
-    "'['",
-    "']'",
-    "':'",
-    "decimal",
-    "integer",
-    "identifier",
-    "string",
-    "'.'",
-    "'&&'",
-    "'||'",
-    "'+'",
-    "-",
-    "'*'",
-    "/",
-    "'%'",
-    "'=~'",
-    "'=='",
-    "'!='",
-    "'>='",
-    "'<='",
-    "'>'",
-    "'<'",
-    "'!'"
+    [LEX_NONE] = "end of query",
+    [LEX_LPAREN] = "'('",
+    [LEX_RPAREN] = "')'",
+    [LEX_LBRACKET] = "'['",
+    [LEX_RBRACKET] = "']'",
+    [LEX_COLON] = "':'",
+    [LEX_FLOAT] = "decimal",
+    [LEX_INTEGER] = "integer",
+    [LEX_ID] = "identifier",
+    [LEX_STRING] = "string",
+    [LEX_DOT] = "'.'",
+    [LEX_AND] = "'&&'",
+    [LEX_OR] = "'||'",
+    [LEX_PLUS] = "'+'",
+    [LEX_MINUS] = "-",
+    [LEX_TIMES] = "'*'",
+    [LEX_SLASH] = "/",
+    [LEX_MOD] = "'%'",
+    [LEX_MATCH] = "'=~'",
+    [LEX_EQUAL] = "'=='",
+    [LEX_NEQUAL] = "'!='",
+    [LEX_GEQ] = "'>='",
+    [LEX_LEQ] = "'<='",
+    [LEX_GREATER] = "'>'",
+    [LEX_LESS] = "'<'",
+    [LEX_BANG] = "'!'"
 };
 
 static const char * const KEYWORD_IN = "in";
@@ -308,7 +314,7 @@ jsex_token_t * jsex_lexer(const char *input) {
 
     while (token = jsex_lexer_next(input, &offset), token >= 0 && offset > 0) {
         if (token > 0) {
-            tokens = realloc(tokens, sizeof(jsex_token_t) * (i + 1));
+            tokens = jsex_realloc(tokens, i + 1, jsex_token_t);
             tokens[i].type = token;
             tokens[i].string = strndup(input, offset);
             i++;
@@ -317,7 +323,7 @@ jsex_token_t * jsex_lexer(const char *input) {
         input += offset;
     }
 
-    tokens = realloc(tokens, sizeof(jsex_token_t) * (i + 1));
+    tokens = jsex_realloc(tokens, i + 1, jsex_token_t);
     tokens[i].type = LEX_NONE;
     tokens[i].string = NULL;
 
@@ -337,7 +343,7 @@ void jsex_regex_compile() {
     char errbuf[128];
 
     profile_start();
-    regexes = malloc(sizeof(regex_t) * N_PATTERNS);
+    regexes = jsex_malloc(N_PATTERNS, regex_t);
 
     if (!regexes) {
         error("At malloc()");
@@ -446,7 +452,7 @@ jsex_t * jsex_parse_query(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -481,7 +487,7 @@ jsex_t * jsex_parse_sentence(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        parent = calloc(1, sizeof(jsex_t));
+        parent = jsex_calloc(1, jsex_t);
         parent->function = jsex_rt_negate;
         parent->args[0] = node;
         node = parent;
@@ -533,7 +539,7 @@ jsex_t * jsex_parse_sentence(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -580,7 +586,7 @@ jsex_t * jsex_parse_expression(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -631,7 +637,7 @@ jsex_t * jsex_parse_term(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    parent = calloc(1, sizeof(jsex_t));
+    parent = jsex_calloc(1, jsex_t);
     parent->function = function;
     parent->args[0] = node;
     parent->args[1] = sibling;
@@ -747,7 +753,7 @@ jsex_t * jsex_parse_factor(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        parent = calloc(1, sizeof(jsex_t));
+        parent = jsex_calloc(1, jsex_t);
         parent->function = jsex_rt_opposite;
         parent->args[0] = node;
         node = parent;
@@ -777,7 +783,7 @@ jsex_t * jsex_parse_function(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
 
     if (strcmp((*tokens)->string, FUNCTION_INT) == 0) {
         node->function = jsex_rt_int;
@@ -848,7 +854,7 @@ jsex_t * jsex_parse_member(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateString((*tokens)->string);
     node->function = jsex_rt_variable;
     ++(*tokens);
@@ -862,7 +868,7 @@ jsex_t * jsex_parse_member(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        parent = calloc(1, sizeof(jsex_t));
+        parent = jsex_calloc(1, jsex_t);
         parent->args[0] = node;
         parent->args[1] = index;
         parent->function = jsex_rt_index;
@@ -921,7 +927,7 @@ jsex_t * jsex_parse_root(const jsex_token_t ** tokens) {
             goto error;
         }
 
-        node = calloc(1, sizeof(jsex_t));
+        node = jsex_calloc(1, jsex_t);
         node->args[1] = index;
         node->function = jsex_rt_index;
 
@@ -941,7 +947,7 @@ jsex_t * jsex_parse_root(const jsex_token_t ** tokens) {
                 goto error;
             }
 
-            parent = calloc(1, sizeof(jsex_t));
+            parent = jsex_calloc(1, jsex_t);
             parent->args[0] = node;
             parent->args[1] = index;
             parent->function = jsex_rt_index;
@@ -980,7 +986,7 @@ jsex_t * jsex_parse_root(const jsex_token_t ** tokens) {
         break;
 
     default:
-        node = calloc(1, sizeof(jsex_t));
+        node = jsex_calloc(1, jsex_t);
         node->function = jsex_rt_root;
     }
 
@@ -1002,7 +1008,7 @@ jsex_t * jsex_parse_loop(const jsex_token_t ** tokens) {
         goto error;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
 
     if (strcmp((*tokens)->string, KEYWORD_ALL) == 0) {
         node->function = jsex_rt_loop_all;
@@ -1077,7 +1083,7 @@ jsex_t * jsex_parse_null(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateNull();
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1094,7 +1100,7 @@ jsex_t * jsex_parse_true(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateTrue();
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1110,7 +1116,7 @@ jsex_t * jsex_parse_false(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateFalse();
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1136,7 +1142,7 @@ jsex_t * jsex_parse_float(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateNumber(number);
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1162,7 +1168,7 @@ jsex_t * jsex_parse_integer(const jsex_token_t ** tokens) {
         return NULL;
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateNumber(number);
     node->function = jsex_rt_value;
     ++(*tokens);
@@ -1192,9 +1198,9 @@ jsex_t * jsex_parse_string(const jsex_token_t ** tokens) {
         strcpy(escape, escape + 1);
     }
 
-    node = calloc(1, sizeof(jsex_t));
+    node = jsex_calloc(1, jsex_t);
     node->value = cJSON_CreateString(string);
-    node->regex = malloc(sizeof(regex_t));
+    node->regex = jsex_malloc(1, regex_t);
     node->function = jsex_rt_value;
 
     if (regcomp(node->regex, string, REG_EXTENDED)) {
@@ -1678,7 +1684,7 @@ cJSON * jsex_rt_add(const jsex_t * node, const cJSON * value) {
 
         if (cJSON_IsString(aux)) {
             offset = strlen(result->valuestring);
-            string = malloc(offset + strlen(aux->valuestring) + 1);
+            string = jsex_malloc(offset + strlen(aux->valuestring) + 1, char);
             strcpy(string, result->valuestring);
             strcpy(string + offset, aux->valuestring);
             debug_rt("jsex_rt: (%s + %s) -> %s", result->valuestring, aux->valuestring, string);
@@ -2102,7 +2108,7 @@ cJSON * jsex_cast_bool(const cJSON * value) {
         break;
 
     case cJSON_Raw:
-        number = value->valuestring != '\0';
+        number = value->valuestring[0] != '\0';
     default:
         debug("At jsex_cast_bool(): unknown value type (%d)", value->type);
     }
@@ -2155,7 +2161,7 @@ cJSON * jsex_cast_int(const cJSON * value) {
 
 cJSON * jsex_cast_string(const cJSON * value) {
     cJSON * child;
-    char *string = "";
+    const char *string = "";
     char buffer[64];
 
     switch (value->type) {
